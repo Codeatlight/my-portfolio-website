@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { SUN_X, SUN_X_T, SUN_Y, SUN_Y_T, interp } from './skyTimeline';
+import { useSkyCanvas } from './useSkyCanvas';
 import {
   motion,
   useMotionTemplate,
@@ -134,11 +136,9 @@ export default function SkyBackground() {
   // SUN — one body: sets on the right, rises again on the left
   // --------------------------------------------------------
   // Positions are driven through transforms (vw/vh) rather than left/top so moving them never triggers layout
-  const SUN_T = [0, 0.22, 0.5, 0.78, 1];
-  const SUN_X = [70, 76, 50, 24, 31];
-  const sunLeft = useTransform(t, SUN_T, SUN_X.map((v) => `${v}%`));
-  const sunVw = useTransform(t, SUN_T, SUN_X.map((v) => `${v}vw`));
-  const sunVh = useTransform(t, [0, 0.08, 0.22, 0.5, 0.78, 0.9, 1], ['60vh', '68vh', '96vh', '130vh', '96vh', '70vh', '56vh']);
+  const sunLeft = useTransform(t, SUN_X_T, SUN_X.map((v) => `${v}%`));
+  const sunVw = useTransform(t, SUN_X_T, SUN_X.map((v) => `${v}vw`));
+  const sunVh = useTransform(t, SUN_Y_T, SUN_Y.map((v) => `${v}vh`));
   const sunCore = useTransform(t, [0, 0.15, 0.22, 0.78, 0.9, 1], ['#ff9f45', '#ff7840', '#ff5a3c', '#ff6a3c', '#ffb04f', '#ffd27a']);
   const sunGlow = useTransform(t, [0, 0.22, 0.78, 1], ['rgba(255,140,70,0.55)', 'rgba(255,90,60,0.45)', 'rgba(255,110,60,0.45)', 'rgba(255,200,110,0.55)']);
   const sunBg = useMotionTemplate`radial-gradient(circle at 50% 42%, #fff7dc 0%, #ffe3a3 22%, ${sunCore} 62%, ${sunCore} 100%)`;
@@ -161,141 +161,14 @@ export default function SkyBackground() {
   const moonX = useTransform(px, (v) => v * -4);
 
   // --------------------------------------------------------
-  // STARS
+  // STARS, CONSTELLATIONS, FIREFLIES & MORNING MOTES (canvas)
   // --------------------------------------------------------
-  const starsOpacity = useTransform(t, [0.18, 0.32, 0.68, 0.82], [0, 1, 1, 0]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const starsAlpha = useRef(0);
-  useMotionValueEvent(starsOpacity, 'change', (v) => {
-    starsAlpha.current = v;
-  });
+  const { backRef, frontRef } = useSkyCanvas(t);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const tints = ['255,255,255', '210,225,255', '255,236,210', '200,210,255'];
-
-    type Star = { x: number; y: number; r: number; phase: number; speed: number; tint: string; glint: boolean };
-    type Meteor = { x: number; y: number; vx: number; vy: number; life: number };
-
-    let w = 0;
-    let h = 0;
-    let stars: Star[] = [];
-    let meteor: Meteor | null = null;
-    let frame = 0;
-
-    const seed = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      w = window.innerWidth;
-      h = window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const count = Math.round(Math.min(320, (w * h) / 5200));
-      stars = Array.from({ length: count }, (_, i) => {
-        // ~40% of stars cluster along the milky way diagonal
-        const onBand = i % 5 < 2;
-        const u = Math.random();
-        const x = onBand ? u * w : Math.random() * w;
-        const y = onBand ? u * h * 0.55 + (Math.random() - 0.5) * h * 0.18 : Math.random() * h * 0.78;
-        const big = Math.random() < 0.04;
-        return {
-          x,
-          y,
-          r: big ? 1.3 + Math.random() * 0.7 : 0.3 + Math.random() * 0.9,
-          phase: Math.random() * Math.PI * 2,
-          speed: 0.6 + Math.random() * 1.8,
-          tint: tints[Math.floor(Math.random() * tints.length)],
-          glint: big,
-        };
-      });
-    };
-
-    const draw = (time: number) => {
-      frame = requestAnimationFrame(draw);
-      const alpha = starsAlpha.current;
-      if (alpha <= 0.001) return;
-
-      ctx.clearRect(0, 0, w, h);
-
-      // Milky way haze
-      ctx.save();
-      ctx.globalAlpha = alpha * 0.9;
-      ctx.translate(w / 2, h * 0.28);
-      ctx.rotate(Math.atan2(h * 0.55, w));
-      const band = ctx.createLinearGradient(0, -h * 0.14, 0, h * 0.14);
-      band.addColorStop(0, 'rgba(180,170,255,0)');
-      band.addColorStop(0.5, 'rgba(200,190,255,0.07)');
-      band.addColorStop(1, 'rgba(180,170,255,0)');
-      ctx.fillStyle = band;
-      ctx.fillRect(-w, -h * 0.14, w * 2, h * 0.28);
-      ctx.restore();
-
-      const s = time / 1000;
-      for (const star of stars) {
-        const twinkle = reduceMotion ? 0.8 : 0.55 + 0.45 * Math.sin(s * star.speed + star.phase);
-        const a = alpha * twinkle;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${star.tint},${a})`;
-        ctx.fill();
-
-        if (star.glint) {
-          ctx.strokeStyle = `rgba(${star.tint},${a * 0.45})`;
-          ctx.lineWidth = 0.6;
-          ctx.beginPath();
-          ctx.moveTo(star.x - star.r * 4, star.y);
-          ctx.lineTo(star.x + star.r * 4, star.y);
-          ctx.moveTo(star.x, star.y - star.r * 4);
-          ctx.lineTo(star.x, star.y + star.r * 4);
-          ctx.stroke();
-        }
-      }
-
-      if (reduceMotion) return;
-
-      // Occasional shooting star
-      if (!meteor && alpha > 0.6 && Math.random() < 0.004) {
-        meteor = {
-          x: w * (0.3 + Math.random() * 0.7),
-          y: h * Math.random() * 0.3,
-          vx: -(9 + Math.random() * 6),
-          vy: 4 + Math.random() * 3,
-          life: 1,
-        };
-      }
-      if (meteor) {
-        meteor.x += meteor.vx;
-        meteor.y += meteor.vy;
-        meteor.life -= 0.018;
-        if (meteor.life <= 0) {
-          meteor = null;
-        } else {
-          const tail = ctx.createLinearGradient(meteor.x, meteor.y, meteor.x - meteor.vx * 10, meteor.y - meteor.vy * 10);
-          tail.addColorStop(0, `rgba(255,255,255,${meteor.life * alpha})`);
-          tail.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.strokeStyle = tail;
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.moveTo(meteor.x, meteor.y);
-          ctx.lineTo(meteor.x - meteor.vx * 10, meteor.y - meteor.vy * 10);
-          ctx.stroke();
-        }
-      }
-    };
-
-    seed();
-    frame = requestAnimationFrame(draw);
-    window.addEventListener('resize', seed);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener('resize', seed);
-    };
-  }, []);
+  // --------------------------------------------------------
+  // SUNRISE LENS FLARE — static discs strung between the sun and screen centre
+  // --------------------------------------------------------
+  const flareOpacity = useTransform(t, [0.84, 0.93, 1], [0, 0.75, 1]);
 
   // --------------------------------------------------------
   // CLOUDS, FOG & BIRDS
@@ -313,7 +186,7 @@ export default function SkyBackground() {
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
       <motion.div className="absolute inset-0" style={{ background: sky }} />
 
-      <motion.canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ opacity: starsOpacity }} />
+      <canvas ref={backRef} className="absolute inset-0 h-full w-full" />
 
       {/* Horizon glow */}
       <motion.div
@@ -410,6 +283,14 @@ export default function SkyBackground() {
         ))}
         <motion.div className="absolute inset-x-0 bottom-0 h-1/3" style={{ background: fog }} />
       </div>
+
+      <canvas ref={frontRef} className="absolute inset-0 h-full w-full" />
+
+      <motion.div className="absolute inset-0" style={{ opacity: flareOpacity }}>
+        {FLARES.map((f, i) => (
+          <FlarePiece key={i} t={t} px={px} {...f} />
+        ))}
+      </motion.div>
     </div>
   );
 }
@@ -467,6 +348,55 @@ function CloudDeck({ opacity, lit, shade }: { opacity: MotionValue<number>; lit:
           </div>
         ))}
       </div>
+    </motion.div>
+  );
+}
+
+/** k: position along the sun → centre axis (1 = centre, >1 = past it). */
+const FLARES = [
+  { k: 0.32, size: '3.5rem', background: 'radial-gradient(circle, transparent 58%, rgba(255,220,170,0.28) 64%, transparent 72%)' },
+  { k: 0.55, size: '1.1rem', background: 'radial-gradient(circle, rgba(255,214,150,0.55), transparent 70%)' },
+  { k: 0.78, size: '5.5rem', background: 'radial-gradient(circle, rgba(255,170,120,0.16), transparent 70%)' },
+  { k: 1.05, size: '2.2rem', background: 'rgba(170,215,255,0.12)', hex: true },
+  { k: 1.35, size: '8rem', background: 'radial-gradient(circle, transparent 55%, rgba(255,205,160,0.12) 62%, transparent 70%)' },
+  { k: 1.6, size: '1.4rem', background: 'radial-gradient(circle, rgba(200,230,255,0.4), transparent 70%)' },
+];
+
+function FlarePiece({
+  t,
+  px,
+  k,
+  size,
+  background,
+  hex,
+}: {
+  t: MotionValue<number>;
+  px: MotionValue<number>;
+  k: number;
+  size: string;
+  background: string;
+  hex?: boolean;
+}) {
+  // The axis bends toward the cursor a little, like a real lens catching light
+  const x = useTransform([t, px], ([p, m]: number[]) => {
+    const sx = interp(p, SUN_X_T, SUN_X);
+    return `${sx + (50 + m * 10 - sx) * k}vw`;
+  });
+  const y = useTransform(t, (p) => {
+    const sy = interp(p, SUN_Y_T, SUN_Y);
+    return `${sy + (42 - sy) * k}vh`;
+  });
+  return (
+    <motion.div className="absolute left-0 top-0 will-change-transform" style={{ x, y }}>
+      <div
+        className="-translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          width: size,
+          height: size,
+          background,
+          clipPath: hex ? 'polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%)' : undefined,
+        }}
+      />
     </motion.div>
   );
 }
