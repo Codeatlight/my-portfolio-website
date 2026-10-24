@@ -1,118 +1,122 @@
-'use client';
-
 import { useRef } from 'react';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
-import { timelineEntries } from '@/data/experience';
+import { motion, useScroll, useSpring } from 'framer-motion';
+import { MapPin } from 'lucide-react';
+import { timelineEntries, type TimelineEntry } from '@/data/experience';
 import SectionHeader from '@/components/ui/SectionHeader';
 
-export default function Experience() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end end"]
-  });
+const EASE = [0.16, 1, 0.3, 1] as const;
 
-  const lineHeight = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+export default function Experience() {
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  // The line draws itself as the timeline passes the middle of the screen
+  const { scrollYProgress } = useScroll({ target: timelineRef, offset: ['start 60%', 'end 60%'] });
+  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
 
   return (
-    <section id="experience" className="py-24 relative overflow-hidden" ref={containerRef}>
-      <div className="container mx-auto px-6 max-w-6xl relative z-10">
-        <SectionHeader 
-          title="Education & Journey" 
-          subtitle="My academic and professional trajectory in tech." 
+    <section id="experience" className="relative py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-6">
+        <SectionHeader
+          index={4}
+          eyebrow="Journey"
+          title="Education & Journey"
+          subtitle="My academic and professional trajectory in tech."
         />
 
-        <div className="mt-16 relative">
-          {/* Vertical Line */}
-          <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-px bg-white/[0.05] transform md:-translate-x-1/2">
-            <motion.div 
-              className="absolute top-0 left-0 w-full bg-gradient-to-b from-violet-500 to-cyan-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]"
-              style={{ height: lineHeight }}
+        <div ref={timelineRef} className="relative mt-20">
+          {/* Rail */}
+          <div className="absolute bottom-0 left-5 top-0 w-px bg-white/10 md:left-1/2 md:-translate-x-1/2">
+            <motion.div
+              className="absolute inset-0 origin-top bg-gradient-to-b from-accent via-accent-2 to-accent shadow-[0_0_12px_var(--accent)]"
+              style={{ scaleY: progress }}
             />
           </div>
 
-          <div className="space-y-12 md:space-y-24">
-            {timelineEntries.map((entry, index) => {
-              const isEven = index % 2 === 0;
-              return (
-                <TimelineNode 
-                  key={entry.id} 
-                  entry={entry} 
-                  isEven={isEven} 
-                />
-              );
-            })}
-          </div>
+          <ol className="space-y-14 md:space-y-24">
+            {timelineEntries.map((entry, index) => (
+              <TimelineNode key={entry.id} entry={entry} contentLeft={index % 2 === 0} />
+            ))}
+          </ol>
         </div>
       </div>
     </section>
   );
 }
 
-function TimelineNode({ entry, isEven }: { entry: any, isEven: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+function TimelineNode({ entry, contentLeft }: { entry: TimelineEntry; contentLeft: boolean }) {
   const Icon = entry.icon;
 
   return (
-    <div ref={ref} className={`relative flex flex-col md:flex-row items-center ${isEven ? 'md:flex-row-reverse' : ''}`}>
-      {/* Connector & Node */}
-      <div className={`absolute left-6 md:left-1/2 transform -translate-x-1/2 w-4 h-4 rounded-full z-10 flex items-center justify-center ${
-        entry.isCurrent 
-          ? 'bg-zinc-900 border-2 border-violet-500'
-          : 'bg-emerald-500/80 border-2 border-emerald-400/60'
-      }`}>
-        {entry.isCurrent && isInView && (
-          <motion.div
-            initial={{ scale: 0, opacity: 1 }}
-            animate={{ scale: [1, 2, 2.5], opacity: [1, 0.5, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
-            className="absolute inset-0 rounded-full bg-violet-500"
-          />
-        )}
+    <li className={`relative flex flex-col md:flex-row md:items-center ${contentLeft ? 'md:flex-row-reverse' : ''}`}>
+      {/* Node */}
+      <motion.div
+        initial={{ scale: 0 }}
+        whileInView={{ scale: 1 }}
+        viewport={{ once: true, margin: '-120px' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+        className="absolute left-5 top-8 z-10 flex h-4 w-4 -translate-x-1/2 items-center justify-center md:left-1/2 md:top-1/2 md:-translate-y-1/2"
+      >
+        {entry.isCurrent && <span className="absolute h-full w-full animate-ping rounded-full bg-accent/60" />}
+        <span
+          className={`relative h-4 w-4 rounded-full border-2 ${
+            entry.isCurrent ? 'border-accent bg-ink shadow-[0_0_14px_var(--accent)]' : 'border-white/60 bg-accent-2'
+          }`}
+        />
+      </motion.div>
+
+      {/* Period, opposite the card on desktop */}
+      <div className={`hidden md:flex md:w-1/2 ${contentLeft ? 'md:pl-14' : 'md:justify-end md:pr-14'}`}>
+        <motion.span
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-120px' }}
+          transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
+          className="text-glow font-heading text-3xl font-semibold tracking-tight text-white/30 lg:text-4xl"
+        >
+          {entry.period}
+        </motion.span>
       </div>
 
-      {/* Content */}
-      <motion.div 
-        initial={{ opacity: 0, x: isEven ? 50 : -50 }}
-        animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: isEven ? 50 : -50 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className={`w-full pl-16 md:pl-0 md:w-1/2 ${isEven ? 'md:pr-12' : 'md:pl-12'}`}
+      <motion.div
+        initial={{ opacity: 0, x: contentLeft ? -40 : 40 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true, margin: '-120px' }}
+        transition={{ duration: 0.9, ease: EASE }}
+        className={`w-full pl-12 md:w-1/2 ${contentLeft ? 'md:pl-0 md:pr-14' : 'md:pl-14'}`}
       >
-        <div className="p-8 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors duration-300">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-white/[0.05] text-cyan-400">
-              <Icon className="w-6 h-6" />
+        <div className="panel panel-hover rounded-3xl p-7 sm:p-8">
+          <div className="mb-4 flex items-start gap-4">
+            <div className="rounded-xl border border-white/10 bg-gradient-to-br from-accent/20 to-accent-2/20 p-3 text-accent">
+              <Icon className="h-6 w-6" />
             </div>
-            <div>
-              <h3 className="text-xl font-semibold text-white font-display">{entry.title}</h3>
-              <p className="text-violet-400 font-medium">{entry.organization}</p>
+            <div className="min-w-0">
+              <h3 className="font-heading text-lg font-semibold leading-snug text-white sm:text-xl">{entry.title}</h3>
+              <p className="mt-0.5 font-medium text-accent">{entry.organization}</p>
             </div>
           </div>
-          
-          <div className="mb-4 inline-block px-3 py-1 rounded-full bg-white/[0.05] text-xs font-mono text-zinc-300 border border-white/[0.05]">
-            {entry.period}
+
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="chip font-mono md:hidden">{entry.period}</span>
+            <span className="chip">
+              <MapPin size={12} /> {entry.location}
+            </span>
+            {entry.isCurrent && <span className="chip !border-accent/30 !text-accent">Latest</span>}
           </div>
-          
-          <p className="text-zinc-400 leading-relaxed mb-6">
-            {entry.description}
-          </p>
-          
-          {entry.highlights && (
-            <div className="flex flex-wrap gap-2">
-              {entry.highlights.map((highlight: string, i: number) => (
-                <span 
-                  key={i}
-                  className="px-3 py-1 rounded-full text-xs font-medium bg-white/[0.02] text-zinc-300 border border-white/[0.05]"
-                >
+
+          <p className="mb-5 leading-relaxed text-white/70">{entry.description}</p>
+
+          {entry.highlights.length > 0 && (
+            <ul className="space-y-2">
+              {entry.highlights.map((highlight) => (
+                <li key={highlight} className="flex items-start gap-2.5 text-sm text-white/70">
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-accent to-accent-2" />
                   {highlight}
-                </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
       </motion.div>
-    </div>
+    </li>
   );
 }

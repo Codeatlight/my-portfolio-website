@@ -1,85 +1,75 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { INTRO_DELAY, markIntroSeen, showIntro } from '@/lib/intro';
+import { setScrollLocked } from '@/lib/scroll';
 
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+/** A sun sinking through the horizon while the name rises — the page's sunset in miniature. */
 export default function LoadingScreen() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(showIntro);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 2200);
-    return () => clearTimeout(timer);
+    if (!showIntro) return;
+    setScrollLocked(true);
+    const timer = setTimeout(() => setIsLoading(false), INTRO_DELAY * 1000 - 250);
+    return () => {
+      clearTimeout(timer);
+      setScrollLocked(false);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isLoading || !showIntro) return;
+    setScrollLocked(false);
+    markIntroSeen();
+  }, [isLoading]);
 
   return (
     <AnimatePresence>
       {isLoading && (
         <motion.div
+          key="intro"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#09090b]"
+          exit={{ opacity: 0, filter: 'blur(8px)' }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[linear-gradient(180deg,#21173f_0%,#9c3a6a_60%,#ff8a3d_100%)]"
+          aria-hidden="true"
         >
-          {/* Background gradient */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-violet-500/5 blur-[120px]" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-cyan-500/5 blur-[100px] translate-x-20" />
-          </div>
-
-          <div className="relative flex flex-col items-center gap-8">
-            {/* Animated logo */}
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="relative"
-            >
-              <motion.span
-                className="font-heading text-6xl font-bold gradient-text"
-                animate={{ 
-                  backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-                }}
-                transition={{ duration: 3, repeat: Infinity }}
-                style={{
-                  backgroundSize: '200% auto',
-                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4, #8b5cf6)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                PS
-              </motion.span>
-
-              {/* Orbiting ring */}
+          <div className="relative flex flex-col items-center">
+            {/* Sun clipped by the horizon */}
+            <div className="relative h-24 w-48 overflow-hidden">
               <motion.div
-                className="absolute -inset-4 rounded-full border border-violet-500/20"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-              >
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-violet-500" />
-              </motion.div>
-            </motion.div>
-
-            {/* Loading bar */}
-            <div className="w-48 h-[2px] bg-white/[0.06] rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{
-                  background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)',
-                }}
-                initial={{ width: '0%' }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 1.8, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ y: 0 }}
+                animate={{ y: 64 }}
+                transition={{ duration: 1.3, ease: [0.45, 0, 0.55, 1] }}
+                className="absolute left-1/2 top-4 h-24 w-24 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_50%_40%,#fff7dc_0%,#ffd18a_35%,#ff7a3c_100%)] shadow-[0_0_60px_20px_rgba(255,140,70,0.5)]"
               />
             </div>
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.9, ease: EASE }}
+              className="h-px w-72 bg-gradient-to-r from-transparent via-white/80 to-transparent"
+            />
 
-            {/* Loading text */}
+            <div className="mt-6 overflow-hidden">
+              <motion.p
+                initial={{ y: '110%' }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.25, duration: 0.8, ease: EASE }}
+                className="font-heading text-2xl font-semibold tracking-tight text-white"
+              >
+                Parth Shandilya
+              </motion.p>
+            </div>
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-sm text-zinc-500 font-mono"
+              transition={{ delay: 0.5 }}
+              className="eyebrow mt-2 text-white/60"
             >
-              Loading experience...
+              Golden hour, loading
             </motion.p>
           </div>
         </motion.div>

@@ -1,12 +1,22 @@
-"use client";
-
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useState } from 'react';
 import { projects } from '@/data/projects';
 import type { Project } from '@/data/projects';
 import ProjectCard from '@/components/ui/ProjectCard';
 import SectionHeader from '@/components/ui/SectionHeader';
 import ProjectModal from '@/components/ui/ProjectModal';
+
+/*
+ * Bento rhythm on a 6-column grid: wide/narrow, narrow/wide, half/half.
+ * Class strings are spelled out so Tailwind can see them.
+ */
+const LAYOUT = [
+  { cls: 'md:col-span-2 lg:col-span-4', wide: true },
+  { cls: 'lg:col-span-2', wide: false },
+  { cls: 'lg:col-span-2', wide: false },
+  { cls: 'md:col-span-2 lg:col-span-4', wide: true },
+  { cls: 'lg:col-span-3', wide: false },
+  { cls: 'lg:col-span-3', wide: false },
+];
 
 export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -17,47 +27,34 @@ export default function Projects() {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setTimeout(() => setSelectedProject(null), 300);
-  };
+  }, []);
 
   return (
-    <section id="projects" className="py-24 relative overflow-hidden">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-        <SectionHeader title="Featured Projects" />
+    <section id="projects" className="relative py-28 md:py-36">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeader
+          index={3}
+          eyebrow="Selected work"
+          title="Featured Projects"
+          subtitle="Click any project for the full case study: architecture, challenges and outcomes."
+        />
 
-        {/* Projects Grid */}
-        <motion.div 
-          layout
-          className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        >
-          <AnimatePresence mode="popLayout">
-            {projects.map((project, index) => (
-              <motion.div
-                key={project.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ProjectCard 
-                  project={project} 
-                  index={index} 
-                  onOpen={handleOpenModal} 
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </motion.div>
+        <div className="mt-16 grid grid-flow-dense grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-6">
+          {projects.map((project, index) => {
+            const slot = LAYOUT[index % LAYOUT.length];
+            return (
+              <div key={project.id} className={slot.cls}>
+                <ProjectCard project={project} index={index} wide={slot.wide} onOpen={handleOpenModal} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <ProjectModal 
-        project={selectedProject} 
-        isOpen={isModalOpen} 
-        onClose={handleCloseModal} 
-      />
+      <ProjectModal project={selectedProject} isOpen={isModalOpen} onClose={handleCloseModal} />
     </section>
   );
 }

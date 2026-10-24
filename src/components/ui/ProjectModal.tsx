@@ -1,10 +1,9 @@
-"use client";
-
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Check, Zap, Trophy, Rocket, Layers, Clock } from 'lucide-react';
 import { GithubIcon } from '@/components/ui/SocialIcons';
-import type { Project } from '@/data/projects';
+import { categoryLabels, type Project } from '@/data/projects';
+import { setScrollLocked } from '@/lib/scroll';
 
 interface ProjectModalProps {
   project: Project | null;
@@ -14,20 +13,23 @@ interface ProjectModalProps {
 
 export default function ProjectModal({ project, isOpen, onClose }: ProjectModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) onClose();
+      if (e.key === 'Escape') onClose();
     };
-    
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    
+
+    setScrollLocked(true);
+    window.addEventListener('keydown', handleKeyDown);
+    requestAnimationFrame(() => closeRef.current?.focus());
+
     return () => {
-      document.body.style.overflow = '';
+      setScrollLocked(false);
       window.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus?.();
     };
   }, [isOpen, onClose]);
 
@@ -57,14 +59,17 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-12 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 md:p-12 bg-ink/70 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label={project.title}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#0e0c1c] border border-white/10 rounded-3xl overflow-hidden shadow-[0_40px_120px_-30px_rgba(0,0,0,0.8)]"
           >
             {/* Header / Banner */}
             <div 
@@ -72,12 +77,13 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
               style={project.image ? { backgroundImage: `url(${project.image})` } : {}}
             >
               {!project.image && (
-                <div className={`absolute inset-0 bg-gradient-to-r ${project.gradient || 'from-violet-600/30 to-cyan-600/30'}`} />
+                <div className={`absolute inset-0 bg-gradient-to-r ${project.gradient || 'from-amber-500/30 to-rose-500/30'}`} />
               )}
               {/* Gradient overlay to blend with the modal body */}
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c1c] via-[#0e0c1c]/40 to-transparent" />
               <div className="absolute inset-0 bg-black/20" />
               <button
+                ref={closeRef}
                 onClick={onClose}
                 className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 text-white/80 hover:text-white rounded-full backdrop-blur-md transition-colors"
                 aria-label="Close modal"
@@ -87,7 +93,7 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar" data-lenis-prevent>
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
@@ -98,16 +104,16 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
                 <motion.div variants={fadeUp} className="flex flex-col gap-4 -mt-16 sm:-mt-20 relative z-10">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="px-3 py-1 text-xs font-medium text-white/80 bg-white/10 backdrop-blur-md rounded-full border border-white/20 shadow-lg">
-                      {project.category}
+                      {categoryLabels[project.category]}
                     </span>
                     {project.status === 'in-development' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-cyan-300 bg-cyan-900/40 backdrop-blur-md rounded-full border border-cyan-400/30 shadow-lg">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-accent bg-black/40 backdrop-blur-md rounded-full border border-accent/30 shadow-lg">
                         <Clock size={14} />
                         In Development
                       </span>
                     )}
                   </div>
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-heading text-white drop-shadow-md">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-heading tracking-tight text-white drop-shadow-md">
                     {project.title}
                   </h2>
                   <p className="text-xl text-zinc-300 font-medium">
@@ -120,7 +126,7 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
                         href={project.githubUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 transition-colors text-sm font-medium"
+                        className="btn-ghost !py-2 !px-4 text-sm"
                       >
                         <GithubIcon width={16} height={16} />
                         View Source
@@ -131,7 +137,7 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
                         href={project.demoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-violet-900/20"
+                        className="btn-primary !py-2 !px-4 text-sm"
                       >
                         <ExternalLink size={16} />
                         Live Demo
@@ -143,7 +149,7 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
                 {/* Overview */}
                 <motion.div variants={fadeUp} className="flex flex-col gap-3">
                   <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Layers size={20} className="text-violet-400" />
+                    <Layers size={20} className="text-accent" />
                     Overview
                   </h3>
                   <p className="text-zinc-400 leading-relaxed">

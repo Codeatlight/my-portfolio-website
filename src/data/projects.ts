@@ -223,3 +223,9 @@ The application features master account authentication, encrypted credential sto
     gradient: 'from-cyan-500/20 to-emerald-500/20',
   },
 ];
+
+export const categoryLabels: Record<Project['category'], string> = {
+  'ai-ml': 'AI / ML',
+  fullstack: 'Full Stack',
+  desktop: 'Desktop',
+};

@@ -1,167 +1,162 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
-import { useScrollProgress } from '@/hooks/useScrollProgress';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowUpRight, Menu, X } from 'lucide-react';
+import { navSections, sections } from '@/data/sections';
+import { useActiveSection } from '@/hooks/useActiveSection';
+import { INTRO_DELAY } from '@/lib/intro';
+import { scrollToTarget, setScrollLocked } from '@/lib/scroll';
 
-const navLinks = [
-  { label: 'About', href: '#about' },
-  { label: 'Skills', href: '#skills' },
-  { label: 'Projects', href: '#projects' },
-  { label: 'Experience', href: '#experience' },
-  { label: 'Certifications', href: '#certifications' },
-  { label: 'Contact', href: '#contact' },
-];
+const SECTION_IDS = sections.map((s) => s.id);
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('');
-  const progress = useScrollProgress();
+  const activeSection = useActiveSection(SECTION_IDS);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-
-      const sections = navLinks.map((link) => link.href.slice(1));
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sections[i]);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= 150) {
-            setActiveSection(sections[i]);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setIsScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleNavClick = (href: string) => {
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    setScrollLocked(true);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setIsMobileMenuOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      setScrollLocked(false);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isMobileMenuOpen]);
+
+  const go = (id: string) => {
     setIsMobileMenuOpen(false);
-    const el = document.querySelector(href);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Let the menu release the scroll lock before scrolling
+    requestAnimationFrame(() => scrollToTarget(`#${id}`));
   };
 
   return (
     <>
-      {/* Scroll Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-[2px] z-[60] origin-left"
-        style={{
-          scaleX: progress / 100,
-          background: 'linear-gradient(90deg, #F59E0B, #E8567F, #FF9A76)',
-        }}
-      />
-
       <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled
-            ? 'glass-warm backdrop-blur-xl border-b border-amber-500/10'
-            : 'bg-transparent'
-        }`}
+        initial={{ y: -80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: INTRO_DELAY + 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4"
       >
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <motion.button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="relative group cursor-pointer"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              aria-label="Scroll to top"
-            >
-              <span className="font-heading text-xl font-bold gradient-text">
-                PS
-              </span>
-              <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-300 group-hover:w-full" />
-            </motion.button>
+        <nav
+          aria-label="Main navigation"
+          className={`flex w-full max-w-5xl items-center justify-between gap-4 rounded-full py-2 pl-5 pr-2 transition-all duration-500 ${
+            isScrolled ? 'panel' : 'border border-transparent'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => scrollToTarget(0)}
+            className="group flex items-center gap-2 cursor-pointer"
+            aria-label="Back to top"
+          >
+            <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent to-accent-2">
+              <span className="absolute inset-x-0 bottom-0 h-1/2 bg-ink/80" />
+              <span className="relative font-heading text-[11px] font-bold text-ink">PS</span>
+            </span>
+            <span className="hidden font-heading text-sm font-semibold tracking-tight text-white/90 sm:block">
+              Parth Shandilya
+            </span>
+          </button>
 
-            {/* Desktop Nav Links */}
-            <div className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <button
-                  key={link.href}
-                  onClick={() => handleNavClick(link.href)}
-                  className={`relative px-4 py-2 text-sm font-medium transition-colors duration-300 rounded-lg cursor-pointer ${
-                    activeSection === link.href.slice(1)
-                      ? 'text-white'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                  aria-current={activeSection === link.href.slice(1) ? 'page' : undefined}
-                >
-                  {link.label}
-                  {activeSection === link.href.slice(1) && (
-                    <motion.div
-                      layoutId="activeNav"
-                      className="absolute -bottom-1 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500 to-rose-500"
-                      transition={{ type: 'spring' as const, stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
+          <ul className="hidden items-center gap-0.5 lg:flex">
+            {navSections.map((link) => {
+              const isActive = activeSection === link.id;
+              return (
+                <li key={link.id}>
+                  <button
+                    type="button"
+                    onClick={() => go(link.id)}
+                    className={`relative rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors duration-300 cursor-pointer ${
+                      isActive ? 'text-white' : 'text-white/60 hover:text-white'
+                    }`}
+                    aria-current={isActive ? 'location' : undefined}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-active"
+                        className="absolute inset-0 rounded-full border border-white/10 bg-white/[0.08]"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                      />
+                    )}
+                    <span className="relative">{link.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
 
-            {/* Mobile Menu Button */}
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => go('contact')} className="btn-primary !px-4 !py-2 text-[13px] cursor-pointer">
+              Let's talk
+              <ArrowUpRight size={15} />
+            </button>
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-zinc-400 hover:text-white transition-colors"
+              type="button"
+              onClick={() => setIsMobileMenuOpen((o) => !o)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/80 transition-colors hover:text-white lg:hidden cursor-pointer"
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-menu"
             >
-              {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </nav>
       </motion.header>
 
-      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
+            id="mobile-menu"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 md:hidden"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-40 bg-ink/80 backdrop-blur-2xl lg:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
           >
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-            <motion.nav
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="absolute right-0 top-0 bottom-0 w-72 glass border-l border-white/[0.06] p-6 pt-20"
-              aria-label="Mobile navigation"
-            >
-              <div className="flex flex-col gap-2">
-                {navLinks.map((link, i) => (
-                  <motion.button
-                    key={link.href}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    onClick={() => handleNavClick(link.href)}
-                    className={`px-4 py-3 text-left text-base font-medium rounded-xl transition-colors cursor-pointer ${
-                      activeSection === link.href.slice(1)
-                        ? 'text-white bg-white/[0.06]'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/[0.03]'
-                    }`}
-                  >
-                    {link.label}
-                  </motion.button>
-                ))}
-              </div>
-            </motion.nav>
+            <nav aria-label="Mobile navigation" className="flex h-full flex-col justify-center px-8">
+              <ul className="space-y-1">
+                {navSections.map((link, i) => {
+                  const isActive = activeSection === link.id;
+                  return (
+                    <motion.li
+                      key={link.id}
+                      initial={{ opacity: 0, y: 24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 12 }}
+                      transition={{ delay: 0.05 + i * 0.04, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          go(link.id);
+                        }}
+                        className="group flex w-full items-baseline gap-4 py-2 text-left cursor-pointer"
+                      >
+                        <span className="font-mono text-xs text-accent">{String(i + 1).padStart(2, '0')}</span>
+                        <span
+                          className={`font-heading text-4xl font-semibold tracking-tight transition-colors ${
+                            isActive ? 'text-sky-gradient' : 'text-white/80 group-hover:text-white'
+                          }`}
+                        >
+                          {link.label}
+                        </span>
+                      </button>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+            </nav>
           </motion.div>
         )}
       </AnimatePresence>

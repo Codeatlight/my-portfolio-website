@@ -1,447 +1,472 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useMotionTemplate, useMotionValueEvent } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import {
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useMotionValueEvent,
+  useScroll,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from 'framer-motion';
 
-export function useSkyPhase(): 'dusk' | 'night' | 'dawn' {
-  const { scrollYProgress } = useScroll();
-  const [phase, setPhase] = useState<'dusk' | 'night' | 'dawn'>('dusk');
+/*
+ * The whole page is one evening: scroll progress is the clock.
+ *   0.00 – 0.22  dusk: the sun sinks behind the ridges
+ *   0.22 – 0.32  blue hour
+ *   0.32 – 0.68  night: stars, milky way, the moon arcs overhead
+ *   0.68 – 0.78  pre-dawn
+ *   0.78 – 1.00  dawn: the sun rises on the left
+ */
 
-  useMotionValueEvent(scrollYProgress, "change", (latest) => {
-    if (latest < 0.25) setPhase('dusk');
-    else if (latest < 0.75) setPhase('night');
-    else setPhase('dawn');
+// --------------------------------------------------------
+// PALETTE
+// --------------------------------------------------------
+const SKY_T = [0, 0.08, 0.18, 0.28, 0.4, 0.5, 0.6, 0.72, 0.82, 0.92, 1];
+const SKY_TOP = ['#21173f', '#24153f', '#1a1439', '#11112e', '#080a20', '#05061a', '#080a20', '#131735', '#262855', '#34437c', '#3f5895'];
+const SKY_MID = ['#9c3a6a', '#86305f', '#46224f', '#1e1b42', '#0d112c', '#090b22', '#0d112c', '#28234e', '#71396a', '#b8667f', '#d68a86'];
+const SKY_LOW = ['#ff8a3d', '#f06d40', '#b2455c', '#392b58', '#141938', '#0d112c', '#141938', '#3c315c', '#cc5c76', '#fa9d68', '#ffc07e'];
+
+const MOUNT_T = [0, 0.15, 0.3, 0.5, 0.7, 0.85, 1];
+const RANGES = [
+  {
+    // distant, hazy
+    colors: ['#8a4670', '#5e3262', '#1b1a3b', '#10132b', '#1b1a3b', '#6b4677', '#a8768c'],
+    height: 'h-full',
+    depth: 4,
+    path: 'M0,320 L0,190 L70,170 L130,182 L210,140 L260,152 L330,118 L400,150 L470,136 L540,160 L610,124 L700,96 L770,130 L840,118 L920,146 L990,110 L1060,128 L1130,100 L1210,140 L1290,122 L1370,150 L1440,132 L1440,320 Z',
+  },
+  {
+    colors: ['#5b2c5c', '#47244e', '#14152f', '#0b0e21', '#14152f', '#4b2f5d', '#73496a'],
+    height: 'h-[86%]',
+    depth: 9,
+    path: 'M0,320 L0,214 C60,196 110,170 170,178 C230,186 260,150 320,140 C380,130 420,176 490,180 C560,184 600,138 660,126 C720,114 770,160 840,168 C910,176 960,128 1030,120 C1100,112 1150,158 1220,162 C1290,166 1350,140 1440,150 L1440,320 Z',
+  },
+  {
+    colors: ['#391b43', '#2f1737', '#0c0c21', '#070917', '#0c0c21', '#321f3e', '#4d3350'],
+    height: 'h-[66%]',
+    depth: 15,
+    path: 'M0,320 L0,236 C80,226 120,196 200,190 C280,184 320,220 400,222 C480,224 540,176 620,168 C700,160 740,206 820,214 C900,222 960,186 1040,176 C1120,166 1180,206 1260,212 C1340,218 1390,196 1440,190 L1440,320 Z',
+  },
+  {
+    // closest ridge, nearly black
+    colors: ['#1b0e25', '#160b1f', '#060611', '#04040b', '#060611', '#1a1125', '#28192e'],
+    height: 'h-[44%]',
+    depth: 24,
+    path: 'M0,320 L0,250 C70,246 120,226 190,232 C260,238 300,262 380,256 C460,250 500,222 580,226 C660,230 700,258 790,256 C880,254 920,226 1000,224 C1080,222 1130,252 1210,254 C1290,256 1360,236 1440,232 L1440,320 Z',
+  },
+];
+
+// Accent colours exposed to the rest of the UI as CSS variables
+const ACCENT_T = [0, 0.2, 0.3, 0.7, 0.8, 1];
+const ACCENT_1 = ['#ffb15c', '#ffa25c', '#a9bcff', '#a9bcff', '#ffc56b', '#ffd27a'];
+const ACCENT_2 = ['#f0567a', '#e5567f', '#c7a6ff', '#c7a6ff', '#ff8f70', '#ff8f70'];
+
+/**
+ * Mirrors a motion value into a document-level write, at most ~8 times a
+ * second. Each write to a root CSS variable re-styles the whole page, so doing
+ * it every scroll frame is expensive; colour drift this slow doesn't need it.
+ */
+function useThrottledWrite(value: MotionValue<string>, write: (v: string) => void, interval = 120) {
+  const last = useRef(0);
+  const pending = useRef<number | null>(null);
+
+  useEffect(() => {
+    write(value.get());
+    return () => {
+      if (pending.current) window.clearTimeout(pending.current);
+    };
+  }, [value, write]);
+
+  useMotionValueEvent(value, 'change', () => {
+    const now = performance.now();
+    if (now - last.current >= interval) {
+      last.current = now;
+      write(value.get());
+    } else if (!pending.current) {
+      // Trailing write so the final colour is always applied
+      pending.current = window.setTimeout(() => {
+        pending.current = null;
+        last.current = performance.now();
+        write(value.get());
+      }, interval);
+    }
   });
-
-  return phase;
 }
 
-export function SkyBackground() {
-  const { scrollYProgress } = useScroll();
+const setAccent = (v: string) => document.documentElement.style.setProperty('--accent', v);
+const setAccent2 = (v: string) => document.documentElement.style.setProperty('--accent-2', v);
+const setThemeColor = (v: string) => document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v);
+
+export default function SkyBackground() {
+  const { scrollYProgress: t } = useScroll();
 
   // --------------------------------------------------------
-  // SKY GRADIENT
+  // SKY
   // --------------------------------------------------------
-  const skyInput = [0, 0.05, 0.15, 0.25, 0.30, 0.50, 0.70, 0.75, 0.85, 0.95, 1.0];
-  const topColors = [
-    '#FF8C42', '#C84B6B', '#7B2D8E', '#1a1040', '#0A0E27', '#030510', '#0A0E27', '#1a1a3e', '#4A1942', '#FF9A76', '#87CEEB'
-  ];
-  const bottomColors = [
-    '#FF6B35', '#FF6B35', '#E8567F', '#2D3561', '#0F1535', '#0A0E27', '#0F1535', '#2D3561', '#E8567F', '#FFD700', '#FF9A76'
-  ];
-  // Approximated mid colors for a smoother blend
-  const midColors = [
-    '#FF7A3C', '#E35A50', '#B24287', '#242351', '#0D122F', '#070A1C', '#0D122F', '#242850', '#9A3861', '#FFB63B', '#C3B5B1'
-  ];
+  const top = useTransform(t, SKY_T, SKY_TOP);
+  const mid = useTransform(t, SKY_T, SKY_MID);
+  const low = useTransform(t, SKY_T, SKY_LOW);
+  const sky = useMotionTemplate`linear-gradient(180deg, ${top} 0%, ${mid} 52%, ${low} 82%)`;
 
-  const colorTop = useTransform(scrollYProgress, skyInput, topColors);
-  const colorBottom = useTransform(scrollYProgress, skyInput, bottomColors);
-  const colorMid = useTransform(scrollYProgress, skyInput, midColors);
-  const bg = useMotionTemplate`linear-gradient(180deg, ${colorTop} 0%, ${colorMid} 50%, ${colorBottom} 100%)`;
+  // Darkens the reading column while the sky is bright
+  const scrimOpacity = useTransform(t, [0, 0.18, 0.3, 0.7, 0.82, 1], [0.9, 0.55, 0, 0, 0.55, 1]);
+
+  useThrottledWrite(useTransform(t, ACCENT_T, ACCENT_1), setAccent);
+  useThrottledWrite(useTransform(t, ACCENT_T, ACCENT_2), setAccent2);
+  // Mobile browser chrome follows the sky
+  useThrottledWrite(top, setThemeColor, 400);
 
   // --------------------------------------------------------
-  // MOUNTAINS
+  // POINTER PARALLAX
   // --------------------------------------------------------
-  const mountInput = [0, 0.15, 0.3, 0.5, 0.7, 0.85, 1.0];
-  const backMountColors = ['#5C3D6E', '#4C305C', '#0D1225', '#0A0D1A', '#0D1225', '#5C405C', '#8B6B7F'];
-  const midMountColors = ['#3D2352', '#301840', '#080E1F', '#050A14', '#080E1F', '#462E40', '#6B4D5F'];
-  const frontMountColors = ['#2A1538', '#1F0F2A', '#050810', '#02050A', '#050810', '#301F2A', '#4A3040'];
+  const pointer = useMotionValue(0);
+  const px = useSpring(pointer, { stiffness: 40, damping: 18 });
 
-  const backMountFill = useTransform(scrollYProgress, mountInput, backMountColors);
-  const midMountFill = useTransform(scrollYProgress, mountInput, midMountColors);
-  const frontMountFill = useTransform(scrollYProgress, mountInput, frontMountColors);
-
-  // --------------------------------------------------------
-  // CELESTIAL BODIES (Sun, Moon, Dawn Sun)
-  // --------------------------------------------------------
-  // DUSK SUN: visible 0→0.15, fully gone by 0.20 — MUST stay hidden after
-  const duskSunX = useTransform(scrollYProgress, [0, 0.20], ['70%', '78%']);
-  const duskSunY = useTransform(scrollYProgress, [0, 0.20], ['55%', '82%']);
-  const duskSunOpacity = useTransform(scrollYProgress, [0, 0.12, 0.20, 0.25, 1.0], [1, 0.7, 0, 0, 0]);
-
-  // MOON: appears 0.28→0.35, visible until 0.65, fully gone by 0.72 (before dawn sun)
-  const moonX = useTransform(
-    scrollYProgress,
-    [0.28, 0.33, 0.38, 0.50, 0.62, 0.68, 0.72],
-    ['5%', '18%', '25%', '50%', '75%', '82%', '95%']
-  );
-  const moonY = useTransform(
-    scrollYProgress,
-    [0.28, 0.33, 0.38, 0.50, 0.62, 0.68, 0.72],
-    ['82%', '45%', '22%', '12%', '22%', '45%', '82%']
-  );
-  const moonOpacity = useTransform(
-    scrollYProgress,
-    [0.25, 0.28, 0.35, 0.65, 0.72],
-    [0, 0, 1, 1, 0]
-  );
-
-  // DAWN SUN: rises from LEFT side (like moon), arcs right-upward
-  const dawnSunX = useTransform(
-    scrollYProgress,
-    [0.76, 0.80, 0.85, 0.92, 1.0],
-    ['15%', '18%', '25%', '35%', '40%']
-  );
-  const dawnSunY = useTransform(
-    scrollYProgress,
-    [0.76, 0.80, 0.85, 0.92, 1.0],
-    ['82%', '60%', '42%', '30%', '25%']
-  );
-  const dawnSunOpacity = useTransform(scrollYProgress, [0.74, 0.76, 0.82, 1.0], [0, 0, 0.8, 1]);
-  const godRaysOpacity = useTransform(scrollYProgress, [0.82, 0.90, 1.0], [0, 0.25, 0.45]);
+  useEffect(() => {
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    const onMove = (e: PointerEvent) => pointer.set((e.clientX / window.innerWidth) * 2 - 1);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [pointer]);
 
   // --------------------------------------------------------
-  // STARS CANVAS
+  // SUN — one body: sets on the right, rises again on the left
   // --------------------------------------------------------
-  const starsOpacity = useTransform(
-    scrollYProgress,
-    [0.2, 0.25, 0.35, 0.65, 0.75, 0.8],
-    [0, 0, 1, 1, 0, 0]
-  );
-  
-  const starsOpacityRef = useRef(0);
-  useMotionValueEvent(starsOpacity, "change", (val) => {
-    starsOpacityRef.current = val;
-  });
+  // Positions are driven through transforms (vw/vh) rather than left/top so moving them never triggers layout
+  const SUN_T = [0, 0.22, 0.5, 0.78, 1];
+  const SUN_X = [70, 76, 50, 24, 31];
+  const sunLeft = useTransform(t, SUN_T, SUN_X.map((v) => `${v}%`));
+  const sunVw = useTransform(t, SUN_T, SUN_X.map((v) => `${v}vw`));
+  const sunVh = useTransform(t, [0, 0.08, 0.22, 0.5, 0.78, 0.9, 1], ['60vh', '68vh', '96vh', '130vh', '96vh', '70vh', '56vh']);
+  const sunCore = useTransform(t, [0, 0.15, 0.22, 0.78, 0.9, 1], ['#ff9f45', '#ff7840', '#ff5a3c', '#ff6a3c', '#ffb04f', '#ffd27a']);
+  const sunGlow = useTransform(t, [0, 0.22, 0.78, 1], ['rgba(255,140,70,0.55)', 'rgba(255,90,60,0.45)', 'rgba(255,110,60,0.45)', 'rgba(255,200,110,0.55)']);
+  const sunBg = useMotionTemplate`radial-gradient(circle at 50% 42%, #fff7dc 0%, #ffe3a3 22%, ${sunCore} 62%, ${sunCore} 100%)`;
+  // The halo below carries the wide glow; one tight shadow keeps the repainted area small
+  const sunShadow = useMotionTemplate`0 0 60px 20px ${sunGlow}`;
+  const sunHalo = useMotionTemplate`radial-gradient(circle, ${sunGlow} 0%, transparent 62%)`;
+  const sunX = useTransform(px, (v) => v * -6);
+  const raysOpacity = useTransform(t, [0, 0.14, 0.24, 0.78, 0.9, 1], [0.55, 0.25, 0, 0, 0.4, 0.75]);
 
+  // Warm band of light along the horizon, centred under the sun
+  const horizonGlow = useMotionTemplate`radial-gradient(60% 100% at ${sunLeft} 100%, ${sunGlow}, transparent 70%)`;
+  const horizonOpacity = useTransform(t, [0, 0.16, 0.28, 0.72, 0.84, 1], [1, 0.8, 0, 0, 0.8, 1]);
+
+  // --------------------------------------------------------
+  // MOON
+  // --------------------------------------------------------
+  const moonVw = useTransform(t, [0.26, 0.38, 0.5, 0.62, 0.74], ['8vw', '26vw', '50vw', '74vw', '92vw']);
+  const moonVh = useTransform(t, [0.26, 0.38, 0.5, 0.62, 0.74], ['78vh', '30vh', '16vh', '30vh', '78vh']);
+  const moonOpacity = useTransform(t, [0.24, 0.32, 0.66, 0.74], [0, 1, 1, 0]);
+  const moonX = useTransform(px, (v) => v * -4);
+
+  // --------------------------------------------------------
+  // STARS
+  // --------------------------------------------------------
+  const starsOpacity = useTransform(t, [0.18, 0.32, 0.68, 0.82], [0, 1, 1, 0]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const starsAlpha = useRef(0);
+  useMotionValueEvent(starsOpacity, 'change', (v) => {
+    starsAlpha.current = v;
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
 
-    let animationFrameId: number;
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tints = ['255,255,255', '210,225,255', '255,236,210', '200,210,255'];
 
-    canvas.width = width;
-    canvas.height = height;
+    type Star = { x: number; y: number; r: number; phase: number; speed: number; tint: string; glint: boolean };
+    type Meteor = { x: number; y: number; vx: number; vy: number; life: number };
 
-    const handleResize = () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-      initStars();
-    };
-    window.addEventListener('resize', handleResize);
-
-    interface Star {
-      x: number;
-      y: number;
-      size: number;
-      speed: number;
-      opacity: number;
-      twinkleDir: number;
-    }
-
-    interface ShootingStar {
-      x: number;
-      y: number;
-      length: number;
-      speedX: number;
-      speedY: number;
-      opacity: number;
-      active: boolean;
-    }
-
+    let w = 0;
+    let h = 0;
     let stars: Star[] = [];
-    let shootingStar: ShootingStar = {
-      x: 0, y: 0, length: 0, speedX: 0, speedY: 0, opacity: 0, active: false
-    };
+    let meteor: Meteor | null = null;
+    let frame = 0;
 
-    const initStars = () => {
-      stars = [];
-      for (let i = 0; i < 150; i++) {
-        stars.push({
-          x: Math.random() * width,
-          y: Math.random() * height * 0.7,
-          size: Math.random() * 2 + 0.5,
-          speed: Math.random() * 0.02 + 0.005,
-          opacity: Math.random(),
-          twinkleDir: Math.random() > 0.5 ? 1 : -1
-        });
-      }
-    };
-    initStars();
+    const seed = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-      
-      const currentOpacity = starsOpacityRef.current;
-      if (currentOpacity <= 0) return; // Skip logic/rendering if invisible
-      
-      ctx.clearRect(0, 0, width, height);
-      ctx.globalAlpha = currentOpacity;
-
-      // Draw Milky Way
-      const grad = ctx.createLinearGradient(0, 0, width, height * 0.7);
-      grad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
-      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height * 0.7);
-
-      // Draw Stars
-      stars.forEach(star => {
-        star.opacity += star.speed * star.twinkleDir;
-        if (star.opacity >= 1) {
-          star.opacity = 1;
-          star.twinkleDir = -1;
-        } else if (star.opacity <= 0.1) {
-          star.opacity = 0.1;
-          star.twinkleDir = 1;
-        }
-
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
-        ctx.fill();
+      const count = Math.round(Math.min(320, (w * h) / 5200));
+      stars = Array.from({ length: count }, (_, i) => {
+        // ~40% of stars cluster along the milky way diagonal
+        const onBand = i % 5 < 2;
+        const u = Math.random();
+        const x = onBand ? u * w : Math.random() * w;
+        const y = onBand ? u * h * 0.55 + (Math.random() - 0.5) * h * 0.18 : Math.random() * h * 0.78;
+        const big = Math.random() < 0.04;
+        return {
+          x,
+          y,
+          r: big ? 1.3 + Math.random() * 0.7 : 0.3 + Math.random() * 0.9,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.6 + Math.random() * 1.8,
+          tint: tints[Math.floor(Math.random() * tints.length)],
+          glint: big,
+        };
       });
+    };
 
-      // Shooting Star Logic
-      if (!shootingStar.active && Math.random() < 0.005) {
-        shootingStar = {
-          x: Math.random() * width * 0.8 + width * 0.2,
-          y: Math.random() * height * 0.3,
-          length: Math.random() * 100 + 50,
-          speedX: -(Math.random() * 10 + 15),
-          speedY: Math.random() * 5 + 5,
-          opacity: 1,
-          active: true
+    const draw = (time: number) => {
+      frame = requestAnimationFrame(draw);
+      const alpha = starsAlpha.current;
+      if (alpha <= 0.001) return;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Milky way haze
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.translate(w / 2, h * 0.28);
+      ctx.rotate(Math.atan2(h * 0.55, w));
+      const band = ctx.createLinearGradient(0, -h * 0.14, 0, h * 0.14);
+      band.addColorStop(0, 'rgba(180,170,255,0)');
+      band.addColorStop(0.5, 'rgba(200,190,255,0.07)');
+      band.addColorStop(1, 'rgba(180,170,255,0)');
+      ctx.fillStyle = band;
+      ctx.fillRect(-w, -h * 0.14, w * 2, h * 0.28);
+      ctx.restore();
+
+      const s = time / 1000;
+      for (const star of stars) {
+        const twinkle = reduceMotion ? 0.8 : 0.55 + 0.45 * Math.sin(s * star.speed + star.phase);
+        const a = alpha * twinkle;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${star.tint},${a})`;
+        ctx.fill();
+
+        if (star.glint) {
+          ctx.strokeStyle = `rgba(${star.tint},${a * 0.45})`;
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(star.x - star.r * 4, star.y);
+          ctx.lineTo(star.x + star.r * 4, star.y);
+          ctx.moveTo(star.x, star.y - star.r * 4);
+          ctx.lineTo(star.x, star.y + star.r * 4);
+          ctx.stroke();
+        }
+      }
+
+      if (reduceMotion) return;
+
+      // Occasional shooting star
+      if (!meteor && alpha > 0.6 && Math.random() < 0.004) {
+        meteor = {
+          x: w * (0.3 + Math.random() * 0.7),
+          y: h * Math.random() * 0.3,
+          vx: -(9 + Math.random() * 6),
+          vy: 4 + Math.random() * 3,
+          life: 1,
         };
       }
-
-      if (shootingStar.active) {
-        shootingStar.x += shootingStar.speedX;
-        shootingStar.y += shootingStar.speedY;
-        shootingStar.opacity -= 0.02;
-
-        if (shootingStar.opacity <= 0) {
-          shootingStar.active = false;
+      if (meteor) {
+        meteor.x += meteor.vx;
+        meteor.y += meteor.vy;
+        meteor.life -= 0.018;
+        if (meteor.life <= 0) {
+          meteor = null;
         } else {
+          const tail = ctx.createLinearGradient(meteor.x, meteor.y, meteor.x - meteor.vx * 10, meteor.y - meteor.vy * 10);
+          tail.addColorStop(0, `rgba(255,255,255,${meteor.life * alpha})`);
+          tail.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.strokeStyle = tail;
+          ctx.lineWidth = 1.6;
           ctx.beginPath();
-          ctx.moveTo(shootingStar.x, shootingStar.y);
-          ctx.lineTo(shootingStar.x - shootingStar.speedX * 5, shootingStar.y - shootingStar.speedY * 5);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${shootingStar.opacity})`;
-          ctx.lineWidth = 2;
+          ctx.moveTo(meteor.x, meteor.y);
+          ctx.lineTo(meteor.x - meteor.vx * 10, meteor.y - meteor.vy * 10);
           ctx.stroke();
         }
       }
     };
 
-    animationFrameId = requestAnimationFrame(animate);
-
+    seed();
+    frame = requestAnimationFrame(draw);
+    window.addEventListener('resize', seed);
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', seed);
     };
   }, []);
 
   // --------------------------------------------------------
-  // CLOUDS & FOG
+  // CLOUDS, FOG & BIRDS
   // --------------------------------------------------------
-  const cloudInput = [0, 0.25, 0.5, 0.75, 1.0];
-  const cloudOpacity = useTransform(scrollYProgress, cloudInput, [0.5, 0.1, 0.05, 0.1, 0.5]);
-  const cloudColor = useTransform(scrollYProgress, cloudInput, [
-    'rgba(255, 200, 180, 1)',
-    'rgba(100, 100, 120, 1)',
-    'rgba(50, 50, 60, 1)',
-    'rgba(100, 100, 120, 1)',
-    'rgba(255, 220, 200, 1)'
-  ]);
-  const fogOpacity = useTransform(scrollYProgress, cloudInput, [0.2, 0.1, 0.05, 0.1, 0.2]);
-
-  // --------------------------------------------------------
-  // BIRDS (Dawn only)
-  // --------------------------------------------------------
-  const birdsOpacity = useTransform(scrollYProgress, [0.75, 0.8, 0.9, 1.0], [0, 0, 1, 1]);
+  // Two cloud decks with fixed colours, cross-faded by opacity. Because neither
+  // deck's paint ever changes, the blur is rasterized once and the drift is a
+  // pure compositor transform.
+  const warmCloudOpacity = useTransform(t, [0, 0.2, 0.32, 0.68, 0.8, 1], [0.8, 0.5, 0, 0, 0.5, 0.8]);
+  const nightCloudOpacity = useTransform(t, [0.18, 0.32, 0.68, 0.82], [0, 0.35, 0.35, 0]);
+  const fogColor = useTransform(t, MOUNT_T, ['rgba(255,150,110,0.35)', 'rgba(200,90,120,0.25)', 'rgba(60,60,110,0.15)', 'rgba(40,40,90,0.12)', 'rgba(60,60,110,0.15)', 'rgba(230,130,140,0.25)', 'rgba(255,200,160,0.35)']);
+  const fog = useMotionTemplate`linear-gradient(to top, ${fogColor}, transparent)`;
+  const birdsOpacity = useTransform(t, [0, 0.1, 0.18, 0.82, 0.9, 1], [0.8, 0.6, 0, 0, 0.6, 0.85]);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Sky Gradient Background */}
-      <motion.div className="absolute inset-0" style={{ background: bg }} />
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+      <motion.div className="absolute inset-0" style={{ background: sky }} />
 
-      {/* Stars Canvas */}
-      <motion.canvas
-        ref={canvasRef}
-        className="absolute inset-0"
-        style={{ opacity: starsOpacity }}
-      />
+      <motion.canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ opacity: starsOpacity }} />
 
-      {/* Clouds Layer */}
-      <motion.div 
-        className="absolute top-[10%] w-[200%] h-32 flex justify-around animate-[drift_60s_linear_infinite]"
-        style={{ opacity: cloudOpacity }}
-      >
-        {[...Array(4)].map((_, i) => (
-          <motion.div
-            key={`cloud-${i}`}
-            className="w-48 h-12 rounded-full blur-xl"
-            style={{ backgroundColor: cloudColor, marginTop: i % 2 === 0 ? '20px' : '0px' }}
-          />
-        ))}
-      </motion.div>
-      <style>{`
-        @keyframes drift {
-          from { transform: translateX(0%); }
-          to { transform: translateX(-50%); }
-        }
-        @keyframes fly {
-          from { transform: translateX(100vw) translateY(20vh); }
-          to { transform: translateX(-20vw) translateY(10vh); }
-        }
-      `}</style>
-
-      {/* Dusk Sun */}
+      {/* Horizon glow */}
       <motion.div
-        className="absolute w-20 h-20 rounded-full"
-        style={{
-          left: duskSunX,
-          top: duskSunY,
-          opacity: duskSunOpacity,
-          background: 'radial-gradient(circle, #FFE484 0%, #FF8C42 100%)',
-          boxShadow: '0 0 60px 30px rgba(255,140,66,0.4)',
-          transform: 'translate(-50%, -50%)'
-        }}
+        className="absolute inset-x-0 bottom-[14vh] h-[55vh]"
+        style={{ background: horizonGlow, opacity: horizonOpacity }}
       />
 
       {/* Moon */}
-      <motion.div
-        className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-400 overflow-hidden"
-        style={{
-          left: moonX,
-          top: moonY,
-          opacity: moonOpacity,
-          boxShadow: '0 0 40px 15px rgba(200, 220, 255, 0.3)',
-          transform: 'translate(-50%, -50%)'
-        }}
-      >
-        {/* Moon Craters */}
-        <div className="absolute w-3 h-3 rounded-full bg-black/10 top-3 left-4" />
-        <div className="absolute w-4 h-4 rounded-full bg-black/10 top-8 left-8" />
-        <div className="absolute w-2 h-2 rounded-full bg-black/10 top-6 left-2" />
+      <motion.div className="absolute left-0 top-0 will-change-transform" style={{ x: moonVw, y: moonVh, opacity: moonOpacity }}>
+        <motion.div className="-translate-x-1/2 -translate-y-1/2 relative" style={{ x: moonX }}>
+          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(190,205,255,0.22)_0%,transparent_65%)]" />
+          <div
+            className="relative h-16 w-16 sm:h-20 sm:w-20 overflow-hidden rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 38% 35%, #fbfbff 0%, #dfe4f2 45%, #aab2c8 100%)',
+              boxShadow: '0 0 40px 10px rgba(200,215,255,0.28), inset -8px -6px 18px rgba(60,70,110,0.35)',
+            }}
+          >
+            <span className="absolute left-[22%] top-[24%] h-3 w-3 rounded-full bg-slate-500/20" />
+            <span className="absolute left-[55%] top-[48%] h-4 w-4 rounded-full bg-slate-500/20" />
+            <span className="absolute left-[30%] top-[62%] h-2 w-2 rounded-full bg-slate-500/25" />
+            <span className="absolute left-[64%] top-[22%] h-2 w-2 rounded-full bg-slate-500/15" />
+          </div>
+        </motion.div>
       </motion.div>
 
-      {/* Dawn Sun */}
-      <motion.div
-        className="absolute w-24 h-24 rounded-full"
-        style={{
-          left: dawnSunX,
-          top: dawnSunY,
-          opacity: dawnSunOpacity,
-          background: 'radial-gradient(circle, #FFFDE4 0%, #FFD700 50%, #FF9A40 100%)',
-          boxShadow: '0 0 100px 50px rgba(255, 200, 50, 0.4), 0 0 200px 100px rgba(255, 150, 50, 0.2)',
-          transform: 'translate(-50%, -50%)'
-        }}
-      />
-
-      {/* Dawn God Rays — fan-shaped light beams radiating upward */}
-      <motion.div
-        className="absolute pointer-events-none"
-        style={{
-          left: dawnSunX,
-          top: dawnSunY,
-          opacity: godRaysOpacity,
-          transform: 'translate(-50%, -50%)'
-        }}
-      >
-        {/* Individual light beams fanning upward */}
-        {[-40, -25, -10, 5, 20, 35].map((angle, i) => (
-          <div
-            key={`ray-${i}`}
-            className="absolute bottom-1/2 left-1/2"
+      {/* Sun, rays & halo */}
+      <motion.div className="absolute left-0 top-0 will-change-transform" style={{ x: sunVw, y: sunVh }}>
+        <motion.div className="relative -translate-x-1/2 -translate-y-1/2" style={{ x: sunX }}>
+          <motion.div
+            className="absolute left-1/2 top-1/2 h-[56rem] w-[56rem] -translate-x-1/2 -translate-y-1/2"
             style={{
-              width: '3px',
-              height: `${180 + i * 25}px`,
-              background: `linear-gradient(to top, rgba(255,220,100,0.6), rgba(255,200,80,0.2), transparent)`,
-              transformOrigin: 'bottom center',
-              transform: `translateX(-50%) rotate(${angle}deg)`,
-              filter: 'blur(3px)',
+              opacity: raysOpacity,
+              background: 'repeating-conic-gradient(from 0deg, rgba(255,222,170,0.09) 0deg 2.5deg, transparent 2.5deg 12deg)',
+              maskImage: 'radial-gradient(circle, black 8%, transparent 55%)',
+              WebkitMaskImage: 'radial-gradient(circle, black 8%, transparent 55%)',
             }}
           />
-        ))}
-        {/* Warm atmospheric halo */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: '500px',
-            height: '300px',
-            left: '-250px',
-            top: '-200px',
-            background: 'radial-gradient(ellipse, rgba(255,200,100,0.15) 0%, rgba(255,150,50,0.05) 50%, transparent 70%)',
-          }}
-        />
+          <motion.div
+            className="absolute left-1/2 top-1/2 h-[38rem] w-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ background: sunHalo }}
+          />
+          <motion.div
+            className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full"
+            style={{ background: sunBg, boxShadow: sunShadow }}
+          />
+        </motion.div>
       </motion.div>
 
+      {/* Reading scrim */}
+      <motion.div
+        className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_45%,rgba(10,8,22,0.45),transparent_75%)]"
+        style={{ opacity: scrimOpacity }}
+      />
+
+      {/* Clouds */}
+      <CloudDeck opacity={warmCloudOpacity} lit="#ffb38a" shade="#7a3a6e" />
+      <CloudDeck opacity={nightCloudOpacity} lit="#3a3a62" shade="#1a1a34" />
+
       {/* Birds */}
-      <motion.div 
-        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-        style={{ opacity: birdsOpacity }}
-      >
-        <div className="absolute w-full h-full animate-[fly_40s_linear_infinite]">
-          {/* Bird formation */}
-          <div className="relative top-[20%] left-[50%]">
-            {[
-              { x: 0, y: 0 },
-              { x: 30, y: 20 },
-              { x: -30, y: 20 },
-              { x: 60, y: 40 },
-              { x: -60, y: 40 },
-              { x: 90, y: 60 },
-              { x: -90, y: 60 }
-            ].map((pos, i) => (
-              <div 
-                key={`bird-${i}`} 
-                className="absolute w-4 h-4 border-t-2 border-l-2 border-black/60 rotate-45"
-                style={{ left: pos.x, top: pos.y }}
+      <motion.div className="absolute inset-x-0 top-[22%]" style={{ opacity: birdsOpacity }}>
+        <div className="animate-[bird-flight_48s_linear_infinite]">
+          {[
+            { x: 0, y: 0, s: 1 },
+            { x: 34, y: 16, s: 0.85 },
+            { x: -30, y: 20, s: 0.8 },
+            { x: 66, y: 34, s: 0.7 },
+            { x: 110, y: 8, s: 0.6 },
+          ].map((b, i) => (
+            <svg
+              key={i}
+              viewBox="0 0 24 10"
+              className="absolute h-3 w-7"
+              style={{ left: b.x, top: b.y, scale: b.s }}
+            >
+              <path
+                d="M0 6 Q6 0 12 6 Q18 0 24 6"
+                fill="none"
+                stroke="rgba(20,12,30,0.75)"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                className="origin-center animate-[wing-flap_0.9s_ease-in-out_infinite]"
+                style={{ animationDelay: `${i * 0.13}s` }}
               />
-            ))}
-          </div>
+            </svg>
+          ))}
         </div>
       </motion.div>
 
-      {/* Mountains Container */}
-      <div className="absolute bottom-0 w-full h-[30vh] min-h-[300px]">
-        {/* Back Mountains */}
-        <motion.svg
-          className="absolute bottom-0 w-full h-full"
-          preserveAspectRatio="none"
-          viewBox="0 0 1440 320"
-          style={{ fill: backMountFill }}
-        >
-          <path d="M0,320 L0,200 C120,160,240,220,360,180 C480,140,560,190,720,150 C880,110,960,170,1080,140 C1200,110,1320,180,1440,160 L1440,320 Z" />
-        </motion.svg>
-
-        {/* Mid Mountains */}
-        <motion.svg
-          className="absolute bottom-0 w-full h-[85%]"
-          preserveAspectRatio="none"
-          viewBox="0 0 1440 320"
-          style={{ fill: midMountFill }}
-        >
-          <path d="M0,320 L0,230 C100,200,200,260,350,190 C500,120,600,210,720,170 C840,130,900,100,1050,160 C1200,220,1300,170,1440,200 L1440,320 Z" />
-        </motion.svg>
-
-        {/* Front Mountains */}
-        <motion.svg
-          className="absolute bottom-0 w-full h-[70%]"
-          preserveAspectRatio="none"
-          viewBox="0 0 1440 320"
-          style={{ fill: frontMountFill }}
-        >
-          <path d="M0,320 L0,260 C80,240,160,280,300,230 C440,180,520,250,680,200 C840,150,920,220,1100,190 C1280,160,1360,240,1440,220 L1440,320 Z" />
-        </motion.svg>
-        
-        {/* Atmospheric Fog at mountain base */}
-        <motion.div 
-          className="absolute bottom-0 w-full h-[30%] bg-gradient-to-t from-white/30 to-transparent"
-          style={{ opacity: fogOpacity }}
-        />
+      {/* Mountain ranges */}
+      <div className="absolute inset-x-0 bottom-0 h-[32vh] min-h-[260px]">
+        {RANGES.map((range, i) => (
+          <MountainRange key={i} t={t} px={px} {...range} />
+        ))}
+        <motion.div className="absolute inset-x-0 bottom-0 h-1/3" style={{ background: fog }} />
       </div>
     </div>
   );
 }
 
-export default SkyBackground;
+function MountainRange({
+  t,
+  px,
+  colors,
+  height,
+  depth,
+  path,
+}: {
+  t: MotionValue<number>;
+  px: MotionValue<number>;
+  colors: string[];
+  height: string;
+  depth: number;
+  path: string;
+}) {
+  const fill = useTransform(t, MOUNT_T, colors);
+  const x = useTransform(px, (v) => v * -depth);
+  return (
+    <motion.svg
+      className={`absolute bottom-0 -left-[3%] w-[106%] ${height}`}
+      preserveAspectRatio="none"
+      viewBox="0 0 1440 320"
+      style={{ fill, x }}
+    >
+      <path d={path} />
+    </motion.svg>
+  );
+}
+
+const CLOUDS = [
+  { l: '4%', t: '10%', w: '26rem', h: '4.5rem' },
+  { l: '30%', t: '48%', w: '34rem', h: '5rem' },
+  { l: '62%', t: '18%', w: '22rem', h: '3.5rem' },
+  { l: '80%', t: '60%', w: '28rem', h: '4rem' },
+];
+
+function CloudDeck({ opacity, lit, shade }: { opacity: MotionValue<number>; lit: string; shade: string }) {
+  const background = `radial-gradient(60% 70% at 50% 70%, ${lit} 0%, ${shade} 55%, transparent 72%)`;
+  return (
+    <motion.div className="absolute inset-x-0 top-[12%] h-[30vh]" style={{ opacity }}>
+      <div className="absolute inset-y-0 left-0 flex w-[200%] animate-[cloud-drift_140s_linear_infinite] will-change-transform">
+        {[0, 1].map((copy) => (
+          <div key={copy} className="relative h-full w-1/2">
+            {CLOUDS.map((c, i) => (
+              <div
+                key={i}
+                className="absolute rounded-[50%] blur-2xl"
+                style={{ left: c.l, top: c.t, width: c.w, height: c.h, background }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}

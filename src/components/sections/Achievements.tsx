@@ -1,5 +1,4 @@
-import { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Trophy, Code2, Award, GraduationCap } from 'lucide-react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -11,26 +10,22 @@ const achievements = [
   { id: 'research', label: 'Research Paper Published', target: 1, suffix: '', icon: Trophy },
 ];
 
-export default function Achievements() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(sectionRef, { once: true, margin: '-50px' });
+const EASE = [0.16, 1, 0.3, 1] as const;
 
+export default function Achievements() {
   return (
-    <section id="achievements" className="py-24 relative overflow-hidden" ref={sectionRef}>
-      <div className="container mx-auto px-6 max-w-6xl relative z-10">
+    <section id="achievements" className="relative py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-6">
         <SectionHeader
+          index={6}
+          eyebrow="By the numbers"
           title="Milestones & Achievements"
           subtitle="Quantifying my journey and academic excellence."
         />
 
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="panel mt-16 grid grid-cols-2 overflow-hidden rounded-3xl lg:grid-cols-4">
           {achievements.map((item, index) => (
-            <AchievementCard
-              key={item.id}
-              item={item}
-              index={index}
-              isInView={isInView}
-            />
+            <AchievementCard key={item.id} item={item} index={index} />
           ))}
         </div>
       </div>
@@ -47,45 +42,36 @@ interface AchievementItem {
   isDecimal?: boolean;
 }
 
-function AchievementCard({ item, index, isInView }: { item: AchievementItem; index: number; isInView: boolean }) {
+function AchievementCard({ item, index }: { item: AchievementItem; index: number }) {
   const Icon = item.icon;
-  const { ref, count } = useCountUp({
-    end: isInView ? item.target : 0,
-    duration: 2000,
-  });
-
+  const { ref, count } = useCountUp({ end: item.target, duration: 2000 });
   const displayNum = item.isDecimal ? (count / 100).toFixed(2) : count;
 
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-      transition={{ duration: 0.5, delay: index * 0.1, ease: 'easeOut' }}
-      className="relative group overflow-hidden p-8 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors"
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.8, delay: index * 0.1, ease: EASE }}
+      className={`group relative overflow-hidden p-7 sm:p-9 transition-colors duration-500 hover:bg-white/[0.04]
+        ${index % 2 === 0 ? 'border-r border-white/10' : ''} ${index < 2 ? 'border-b border-white/10 lg:border-b-0' : ''}
+        ${index === 1 ? 'lg:border-r' : ''}`}
     >
-      {/* Background icon */}
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        <Icon className="w-24 h-24 text-violet-400 transform rotate-12" />
+      <Icon className="absolute -right-4 -top-4 h-28 w-28 rotate-12 text-accent opacity-[0.07] transition-all duration-700 group-hover:rotate-0 group-hover:opacity-[0.14]" />
+
+      <div className="relative">
+        <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-br from-accent/25 to-accent-2/25">
+          <Icon className="h-5 w-5 text-accent" />
+        </div>
+        <div className="font-heading text-5xl font-bold tabular-nums tracking-tight text-white sm:text-6xl">
+          {displayNum}
+          <span className="text-sky-gradient">{item.suffix}</span>
+        </div>
+        <p className="mt-2 text-sm font-medium text-white/60">{item.label}</p>
       </div>
 
-      <div className="relative z-10">
-        <div className="w-12 h-12 mb-6 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 flex items-center justify-center border border-white/[0.1]">
-          <Icon className="w-6 h-6 text-cyan-400" />
-        </div>
-
-        <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-400 font-heading">
-            {displayNum}{item.suffix}
-          </span>
-        </div>
-
-        <p className="text-sm text-zinc-400 font-medium">
-          {item.label}
-        </p>
-      </div>
-
-      <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-violet-500 to-cyan-500 w-0 group-hover:w-full transition-all duration-500 ease-out" />
+      <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-gradient-to-r from-accent to-accent-2 transition-all duration-700 ease-out group-hover:w-full" />
     </motion.div>
   );
 }

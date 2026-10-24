@@ -1,64 +1,56 @@
-import React, { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { scrollToTarget } from '@/lib/scroll';
 
 interface MagneticButtonProps {
   children: React.ReactNode;
   className?: string;
-  onClick?: () => void;
-  href?: string;
+  href: string;
+  ariaLabel?: string;
+  strength?: number;
 }
 
-export default function MagneticButton({ children, className = '', onClick: _onClick, href }: MagneticButtonProps) {
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+/** A link that leans toward the cursor. Uses motion values so hovering never re-renders. */
+export default function MagneticButton({ children, className = '', href, ariaLabel, strength = 0.25 }: MagneticButtonProps) {
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const x = useSpring(mx, { stiffness: 220, damping: 15, mass: 0.2 });
+  const y = useSpring(my, { stiffness: 220, damping: 15, mass: 0.2 });
 
-  const handleMouse = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { clientX, clientY } = e;
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const middleX = clientX - (rect.left + rect.width / 2);
-    const middleY = clientY - (rect.top + rect.height / 2);
-    setPosition({ x: middleX * 0.1, y: middleY * 0.1 });
+  const handleMove = (e: React.PointerEvent<HTMLAnchorElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    mx.set((e.clientX - (rect.left + rect.width / 2)) * strength);
+    my.set((e.clientY - (rect.top + rect.height / 2)) * strength);
   };
 
   const reset = () => {
-    setPosition({ x: 0, y: 0 });
+    mx.set(0);
+    my.set(0);
   };
 
-  const inner = (
-    <motion.div
-      ref={buttonRef}
-      onMouseMove={handleMouse}
-      onMouseLeave={reset}
-      animate={{ x: position.x, y: position.y }}
-      transition={{ type: 'spring', stiffness: 150, damping: 15, mass: 0.1 }}
-      className={`inline-block cursor-pointer ${className}`}
+  const isExternal = href.startsWith('http');
+
+  return (
+    <motion.a
+      href={href}
+      aria-label={ariaLabel}
+      style={{ x, y }}
+      onPointerMove={handleMove}
+      onPointerLeave={reset}
+      className={className}
+      {...(isExternal
+        ? { target: '_blank', rel: 'noopener noreferrer' }
+        : {
+            onClick: (e: React.MouseEvent) => {
+              if (href.startsWith('#')) {
+                e.preventDefault();
+                scrollToTarget(href);
+              }
+            },
+          })}
     >
       {children}
-    </motion.div>
+    </motion.a>
   );
-
-  if (href) {
-    const isExternal = href.startsWith('http');
-    if (isExternal) {
-      return (
-        <a href={href} target="_blank" rel="noopener noreferrer">
-          {inner}
-        </a>
-      );
-    }
-    return (
-      <a href={href} onClick={(e) => {
-        if (href.startsWith('#')) {
-          e.preventDefault();
-          const el = document.querySelector(href);
-          el?.scrollIntoView({ behavior: 'smooth' });
-        }
-      }}>
-        {inner}
-      </a>
-    );
-  }
-
-  return <>{inner}</>;
 }

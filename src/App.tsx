@@ -17,8 +17,8 @@ const Contact = lazy(() => import('@/components/sections/Contact'));
 
 function SectionFallback() {
   return (
-    <div className="min-h-[400px] flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-accent" />
     </div>
   );
 }
@@ -26,44 +26,32 @@ function SectionFallback() {
 export default function App() {
   return (
     <>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <LoadingScreen />
       <SkyBackground />
       <Navbar />
       <ScrollPercentage />
-      
-      <main>
+
+      <main id="main" className="relative z-10 overflow-x-clip">
         <Hero />
-        
+
+        {/* One boundary keeps section order stable while chunks stream in */}
         <Suspense fallback={<SectionFallback />}>
           <About />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Skills />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Projects />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Experience />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Certifications />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Achievements />
-        </Suspense>
-        
-        <Suspense fallback={<SectionFallback />}>
           <Contact />
         </Suspense>
       </main>
-      
-      <Footer />
+
+      <div className="relative z-10">
+        <Footer />
+      </div>
     </>
   );
 }

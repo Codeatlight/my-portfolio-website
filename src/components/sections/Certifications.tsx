@@ -1,107 +1,132 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ExternalLink, Award } from 'lucide-react';
+import { ArrowUpRight, Award } from 'lucide-react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { certifications, certificationCategories } from '@/data/certifications';
+
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Certifications() {
   const [activeFilter, setActiveFilter] = useState('all');
 
-  const filtered = activeFilter === 'all'
-    ? certifications
-    : certifications.filter((cert) => cert.category === activeFilter);
+  const filtered = activeFilter === 'all' ? certifications : certifications.filter((cert) => cert.category === activeFilter);
+  const paper = filtered.find((c) => c.isResearchPaper);
+  const rest = filtered.filter((c) => !c.isResearchPaper);
 
   return (
-    <section id="certifications" className="py-24 relative overflow-hidden">
-      <div className="container mx-auto px-6 max-w-6xl relative z-10">
+    <section id="certifications" className="relative py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-6">
         <SectionHeader
+          index={5}
+          eyebrow="Credentials"
           title="Certifications & Publications"
           subtitle="Continuous learning across AI, systems, and software engineering."
         />
 
-        {/* Filter tabs */}
-        <div className="flex flex-wrap justify-center gap-2 mt-12">
-          {certificationCategories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveFilter(cat.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 cursor-pointer ${
-                activeFilter === cat.id
-                  ? 'bg-white/[0.1] text-white border border-white/[0.15]'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Certification cards grid */}
-        <motion.div
-          layout
-          className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <AnimatePresence mode="popLayout">
-            {filtered.map((cert, index) => {
-              const Icon = cert.icon;
-              const isHighlight = cert.isResearchPaper;
-
+        <div className="mt-12 flex justify-center">
+          <div role="tablist" aria-label="Filter certifications" className="panel flex max-w-full gap-1 overflow-x-auto rounded-full p-1.5 [scrollbar-width:none]">
+            {certificationCategories.map((cat) => {
+              const isActive = activeFilter === cat.id;
+              const count = cat.id === 'all' ? certifications.length : certifications.filter((c) => c.category === cat.id).length;
               return (
-                <motion.div
-                  key={cert.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className={`group relative p-6 rounded-2xl backdrop-blur-xl border transition-all duration-300 hover:-translate-y-1 ${
-                    isHighlight
-                      ? 'bg-gradient-to-br from-amber-500/[0.06] to-rose-500/[0.06] border-amber-500/20 hover:border-amber-500/40 col-span-1 sm:col-span-2 lg:col-span-3'
-                      : 'bg-white/[0.02] border-white/[0.06] hover:border-violet-500/30 hover:bg-white/[0.04]'
+                <button
+                  key={cat.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveFilter(cat.id)}
+                  className={`relative flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    isActive ? 'text-ink' : 'text-white/65 hover:text-white'
                   }`}
                 >
-                  <div className={`flex ${isHighlight ? 'flex-col sm:flex-row sm:items-center' : 'flex-col'} gap-4`}>
-                    {/* Icon */}
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cert.gradient} flex items-center justify-center flex-shrink-0 ${
-                      isHighlight ? 'w-14 h-14' : ''
-                    }`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
+                  {isActive && (
+                    <motion.span
+                      layoutId="cert-tab"
+                      className="absolute inset-0 rounded-full bg-gradient-to-r from-accent to-accent-2"
+                      transition={{ type: 'spring', bounce: 0.18, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative whitespace-nowrap">{cat.label}</span>
+                  <span className={`relative font-mono text-[10px] ${isActive ? 'text-ink/70' : 'text-white/40'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {isHighlight && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <Award size={14} className="text-amber-400" />
-                          <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Research Paper</span>
-                        </div>
-                      )}
-                      <h3 className={`font-semibold text-white leading-tight ${isHighlight ? 'text-lg' : 'text-sm'}`}>
-                        {cert.title}
-                      </h3>
-                      <p className="text-xs text-zinc-400 mt-1">
-                        {cert.issuer}
-                      </p>
-                    </div>
+        {/* Research paper spotlight */}
+        <AnimatePresence>
+          {paper && (
+            <motion.div
+              key={paper.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.5, ease: EASE }}
+              className="panel ring-glow mt-12 overflow-hidden rounded-3xl"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/15 via-transparent to-accent-2/15" />
+              <div className="relative flex flex-col gap-6 p-7 sm:flex-row sm:items-center sm:p-9">
+                <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${paper.gradient} shadow-[0_10px_30px_-10px_var(--accent-2)]`}>
+                  <paper.icon className="h-8 w-8 text-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="eyebrow mb-2 flex items-center gap-2 text-accent">
+                    <Award size={13} /> Research Paper
+                  </div>
+                  <h3 className="font-heading text-xl font-semibold leading-snug text-white sm:text-2xl">{paper.title}</h3>
+                  <p className="mt-1 text-sm text-white/60">{paper.issuer}</p>
+                </div>
+                {paper.verifyUrl && paper.verifyUrl !== '#' && (
+                  <a href={paper.verifyUrl} target="_blank" rel="noopener noreferrer" className="btn-primary shrink-0 self-start text-sm sm:self-center">
+                    Read paper <ArrowUpRight size={16} />
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                    {/* Verify link */}
-                    {cert.verifyUrl && cert.verifyUrl !== '#' && (
+        <motion.ul layout className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <AnimatePresence mode="popLayout">
+            {rest.map((cert, index) => {
+              const Icon = cert.icon;
+              const hasLink = cert.verifyUrl && cert.verifyUrl !== '#';
+              return (
+                <motion.li
+                  key={cert.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.94 }}
+                  transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.03, ease: EASE }}
+                  className="panel panel-hover group rounded-2xl p-5 hover:-translate-y-1"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cert.gradient}`}>
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold leading-snug text-white">{cert.title}</h3>
+                      <p className="mt-1 text-xs text-white/55">{cert.issuer}</p>
+                    </div>
+                    {hasLink && (
                       <a
                         href={cert.verifyUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.06] transition-all flex-shrink-0"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/60 transition-all duration-300 hover:border-transparent hover:bg-gradient-to-br hover:from-accent hover:to-accent-2 hover:text-ink group-hover:text-white"
+                        aria-label={`Verify ${cert.title}`}
+                        title="Verify"
                       >
-                        <ExternalLink size={12} />
-                        Verify
+                        <ArrowUpRight size={15} />
                       </a>
                     )}
                   </div>
-                </motion.div>
+                </motion.li>
               );
             })}
           </AnimatePresence>
-        </motion.div>
+        </motion.ul>
       </div>
     </section>
   );

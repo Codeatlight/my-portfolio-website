@@ -1,79 +1,90 @@
-import { motion } from 'framer-motion';
-import { Mail, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowUpRight, Check, Copy, Mail, MapPin } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
 import SectionHeader from '@/components/ui/SectionHeader';
+import MagneticButton from '@/components/ui/MagneticButton';
+
+const EMAIL = 'parthshandilya1947@gmail.com';
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export default function Contact() {
-  return (
-    <section id="contact" className="py-24 relative overflow-hidden">
-      {/* Background gradients */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-amber-500/10 blur-[100px] rounded-full transform -translate-y-1/2 -translate-x-1/2" />
-      </div>
+  const [copied, setCopied] = useState(false);
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl relative z-10 text-center">
-        <SectionHeader title="Get In Touch" />
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(EMAIL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      window.location.href = `mailto:${EMAIL}`;
+    }
+  };
+
+  return (
+    <section id="contact" className="relative py-28 md:py-40">
+      <div className="mx-auto max-w-5xl px-6">
+        <SectionHeader index={7} eyebrow="Contact" title="Get In Touch" />
+
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mt-12 flex flex-col items-center"
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 1, ease: EASE }}
+          className="panel mt-14 overflow-hidden rounded-[2rem] p-8 text-center sm:p-14"
         >
-          <h3 className="text-3xl sm:text-4xl font-bold font-heading text-white mb-6">
-            Let's build something <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-rose-400">amazing</span> together.
+          <div className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-accent/30 to-accent-2/30 blur-3xl" />
+
+          <h3 className="relative font-heading text-3xl font-bold tracking-tight text-white sm:text-5xl">
+            Let's build something <span className="font-serif font-normal italic text-sky-gradient pr-1">amazing</span> together.
           </h3>
-          
-          <p className="text-lg text-zinc-400 mb-12 leading-relaxed max-w-2xl">
-            I'm currently looking for new opportunities. Whether you have a question, a project proposal, or just want to say hi, I'll try my best to get back to you!
+
+          <p className="relative mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+            I'm currently looking for new opportunities. Whether you have a question, a project proposal, or just want to
+            say hi, I'll try my best to get back to you!
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 mb-12 w-full justify-center">
-            <a href="mailto:parthshandilya1947@gmail.com" className="flex items-center gap-4 text-zinc-300 hover:text-white transition-colors group p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-amber-500/50 backdrop-blur-xl">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10 group-hover:border-amber-500/50 transition-colors">
-                <Mail size={24} className="text-amber-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm text-zinc-500 font-medium">Email</p>
-                <p className="font-medium">parthshandilya1947@gmail.com</p>
-              </div>
-            </a>
-            
-            <div className="flex items-center gap-4 text-zinc-300 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-xl">
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                <MapPin size={24} className="text-rose-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm text-zinc-500 font-medium">Location</p>
-                <p className="font-medium">New Delhi, India</p>
-              </div>
-            </div>
+          <div className="relative mt-10 flex flex-wrap items-center justify-center gap-3">
+            <MagneticButton href={`mailto:${EMAIL}`} className="btn-primary text-base" strength={0.2}>
+              <Mail size={18} /> Say hello <ArrowUpRight size={16} />
+            </MagneticButton>
+            <button type="button" onClick={copyEmail} className="btn-ghost text-sm cursor-pointer" aria-live="polite">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={copied ? 'done' : 'copy'}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2"
+                >
+                  {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                  {copied ? 'Copied!' : EMAIL}
+                </motion.span>
+              </AnimatePresence>
+            </button>
           </div>
 
-          <div className="flex gap-6 pt-8 border-t border-white/10 w-full justify-center">
-            <motion.a 
-              whileHover={{ y: -5, scale: 1.1 }}
-              transition={{ type: 'spring' as const, stiffness: 400, damping: 10 }}
-              href="https://github.com/Codeatlight" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white transition-colors"
-            >
-              <GithubIcon width={24} height={24} />
-              <span className="sr-only">GitHub</span>
-            </motion.a>
-            <motion.a 
-              whileHover={{ y: -5, scale: 1.1 }}
-              transition={{ type: 'spring' as const, stiffness: 400, damping: 10 }}
-              href="#" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-blue-400 transition-colors"
-            >
-              <LinkedinIcon width={24} height={24} />
-              <span className="sr-only">LinkedIn</span>
-            </motion.a>
+          <div className="relative mt-12 flex flex-col items-center justify-between gap-6 border-t border-white/10 pt-8 sm:flex-row">
+            <span className="flex items-center gap-2 text-sm text-white/60">
+              <MapPin size={16} className="text-accent" /> New Delhi, India
+            </span>
+            <div className="flex gap-3">
+              <MagneticButton
+                href="https://github.com/Codeatlight"
+                ariaLabel="GitHub"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/75 transition-colors hover:border-accent/50 hover:text-white"
+              >
+                <GithubIcon width={20} height={20} />
+              </MagneticButton>
+              <MagneticButton
+                href="https://linkedin.com/in/parth-shandilya"
+                ariaLabel="LinkedIn"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/75 transition-colors hover:border-accent/50 hover:text-white"
+              >
+                <LinkedinIcon width={20} height={20} />
+              </MagneticButton>
+            </div>
           </div>
         </motion.div>
       </div>

@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion';
-import { Mail, Heart } from 'lucide-react';
+import { Mail, Heart, ArrowUp } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
+import { scrollToTarget } from '@/lib/scroll';
 
 const socialLinks = [
   { icon: GithubIcon, href: 'https://github.com/Codeatlight', label: 'GitHub' },
@@ -10,66 +10,42 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-white/[0.06]" role="contentinfo">
-      {/* Gradient divider */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          {/* Logo & Copyright */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="flex flex-col items-center md:items-start gap-2"
-          >
-            <span className="font-heading text-xl font-bold gradient-text">
-              Parth Shandilya
+    <footer className="relative mt-10 pb-10" role="contentinfo">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="panel flex flex-col items-center justify-between gap-6 rounded-3xl px-6 py-6 sm:flex-row sm:px-8">
+          <div className="flex flex-col items-center gap-1 sm:items-start">
+            <span className="font-heading text-lg font-bold text-white">
+              Parth <span className="font-serif font-normal italic text-sky-gradient">Shandilya</span>
             </span>
-            <p className="text-sm text-zinc-500">
-              © {new Date().getFullYear()} All rights reserved.
-            </p>
-          </motion.div>
+            <p className="text-xs text-white/50">© {new Date().getFullYear()} All rights reserved.</p>
+          </div>
 
-          {/* Built with */}
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="flex items-center gap-1.5 text-sm text-zinc-500"
-          >
-            Built with{' '}
-            <motion.span
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
-            >
-              <Heart size={14} className="text-rose-500 fill-rose-500" />
-            </motion.span>{' '}
-            using React, TypeScript & Framer Motion
-          </motion.p>
+          <p className="flex items-center gap-1.5 text-xs text-white/50">
+            Built with <Heart size={12} className="fill-accent-2 text-accent-2" /> using React, TypeScript & Framer Motion
+          </p>
 
-          {/* Social Links */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center gap-3"
-          >
+          <div className="flex items-center gap-2">
             {socialLinks.map((social) => (
               <a
                 key={social.label}
                 href={social.href}
-                target="_blank"
+                target={social.href.startsWith('http') ? '_blank' : undefined}
                 rel="noopener noreferrer"
-                className="p-2.5 rounded-xl glass glass-hover text-zinc-400 hover:text-white transition-all duration-300 hover:-translate-y-0.5"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/65 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:text-white"
                 aria-label={social.label}
               >
-                <social.icon width={18} height={18} />
+                <social.icon width={17} height={17} />
               </a>
             ))}
-          </motion.div>
+            <button
+              type="button"
+              onClick={() => scrollToTarget(0)}
+              className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-2 text-ink transition-transform duration-300 hover:-translate-y-0.5 cursor-pointer"
+              aria-label="Back to top"
+            >
+              <ArrowUp size={17} />
+            </button>
+          </div>
         </div>
       </div>
     </footer>
