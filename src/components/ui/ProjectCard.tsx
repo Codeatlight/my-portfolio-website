@@ -2,6 +2,7 @@ import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import { ExternalLink, ArrowUpRight, Clock } from 'lucide-react';
 import { GithubIcon } from '@/components/ui/SocialIcons';
 import { categoryLabels, type Project } from '@/data/projects';
+import { projectPath } from '@/lib/projectRoute';
 
 interface ProjectCardProps {
   project: Project;
@@ -79,7 +80,17 @@ export default function ProjectCard({ project, index, wide = false, onOpen }: Pr
       <div className="relative z-10 -mt-10 flex flex-grow flex-col gap-4 p-6 sm:p-7">
         <div>
           <h3 className={`font-heading font-bold tracking-tight text-white ${wide ? 'text-2xl sm:text-3xl' : 'text-xl'}`}>
-            {project.title}
+            <a
+              href={projectPath(project.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpen(project);
+              }}
+              className="relative z-40 hover:text-sky-gradient"
+            >
+              {project.title}
+            </a>
           </h3>
           <p className="mt-1 text-sm text-accent/90">{project.subtitle}</p>
         </div>

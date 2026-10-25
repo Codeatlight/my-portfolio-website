@@ -33,7 +33,8 @@ export default function Experience() {
           </div>
 
           <ol className="space-y-14 md:space-y-24">
-            {timelineEntries.map((entry, index) => (
+            {/* Most recent first, as recruiters expect */}
+            {[...timelineEntries].reverse().map((entry, index) => (
               <TimelineNode key={entry.id} entry={entry} contentLeft={index % 2 === 0} />
             ))}
           </ol>
@@ -71,7 +72,7 @@ function TimelineNode({ entry, contentLeft }: { entry: TimelineEntry; contentLef
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-120px' }}
           transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
-          className="text-glow font-heading text-3xl font-semibold tracking-tight text-white/30 lg:text-4xl"
+          className={`text-glow font-heading font-semibold tracking-tight text-white/30 ${entry.compact ? 'text-xl' : 'text-3xl lg:text-4xl'}`}
         >
           {entry.period}
         </motion.span>
@@ -84,38 +85,59 @@ function TimelineNode({ entry, contentLeft }: { entry: TimelineEntry; contentLef
         transition={{ duration: 0.9, ease: EASE }}
         className={`w-full pl-12 md:w-1/2 ${contentLeft ? 'md:pl-0 md:pr-14' : 'md:pl-14'}`}
       >
-        <div className="panel panel-hover rounded-3xl p-7 sm:p-8">
-          <div className="mb-4 flex items-start gap-4">
-            <div className="rounded-xl border border-white/10 bg-gradient-to-br from-accent/20 to-accent-2/20 p-3 text-accent">
-              <Icon className="h-6 w-6" />
+        {entry.compact ? (
+          // Older entries: one tight card with the key result, no paragraph
+          <div className="panel panel-hover flex items-start gap-4 rounded-2xl p-5">
+            <div className="rounded-lg border border-white/10 bg-white/[0.05] p-2.5 text-accent">
+              <Icon className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-heading text-lg font-semibold leading-snug text-white sm:text-xl">{entry.title}</h3>
-              <p className="mt-0.5 font-medium text-accent">{entry.organization}</p>
+              <h3 className="font-heading text-base font-semibold leading-snug text-white">{entry.title}</h3>
+              <p className="mt-0.5 text-sm text-accent">{entry.organization}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="chip font-mono md:hidden">{entry.period}</span>
+                {entry.highlights.slice(0, 1).map((h) => (
+                  <span key={h} className="chip">
+                    {h}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
+        ) : (
+          <div className="panel panel-hover rounded-3xl p-7 sm:p-8">
+            <div className="mb-4 flex items-start gap-4">
+              <div className="rounded-xl border border-white/10 bg-gradient-to-br from-accent/20 to-accent-2/20 p-3 text-accent">
+                <Icon className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-heading text-lg font-semibold leading-snug text-white sm:text-xl">{entry.title}</h3>
+                <p className="mt-0.5 font-medium text-accent">{entry.organization}</p>
+              </div>
+            </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="chip font-mono md:hidden">{entry.period}</span>
-            <span className="chip">
-              <MapPin size={12} /> {entry.location}
-            </span>
-            {entry.isCurrent && <span className="chip !border-accent/30 !text-accent">Latest</span>}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="chip font-mono md:hidden">{entry.period}</span>
+              <span className="chip">
+                <MapPin size={12} /> {entry.location}
+              </span>
+              {entry.isCurrent && <span className="chip !border-accent/30 !text-accent">Latest</span>}
+            </div>
+
+            <p className="mb-5 leading-relaxed text-white/70">{entry.description}</p>
+
+            {entry.highlights.length > 0 && (
+              <ul className="space-y-2">
+                {entry.highlights.map((highlight) => (
+                  <li key={highlight} className="flex items-start gap-2.5 text-sm text-white/70">
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-accent to-accent-2" />
+                    {highlight}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-
-          <p className="mb-5 leading-relaxed text-white/70">{entry.description}</p>
-
-          {entry.highlights.length > 0 && (
-            <ul className="space-y-2">
-              {entry.highlights.map((highlight) => (
-                <li key={highlight} className="flex items-start gap-2.5 text-sm text-white/70">
-                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-accent to-accent-2" />
-                  {highlight}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        )}
       </motion.div>
     </li>
   );

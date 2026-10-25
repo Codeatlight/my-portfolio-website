@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Award } from 'lucide-react';
+import { ArrowUpRight, Award, ChevronDown } from 'lucide-react';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { certifications, certificationCategories } from '@/data/certifications';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+/** Certificates shown before "Show all"; the data lists the strongest first. */
+const PREVIEW_COUNT = 6;
 
 export default function Certifications() {
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showAll, setShowAll] = useState(false);
 
   const filtered = activeFilter === 'all' ? certifications : certifications.filter((cert) => cert.category === activeFilter);
   const paper = filtered.find((c) => c.isResearchPaper);
   const rest = filtered.filter((c) => !c.isResearchPaper);
+  const visible = showAll ? rest : rest.slice(0, PREVIEW_COUNT);
+  const hiddenCount = rest.length - visible.length;
 
   return (
     <section id="certifications" className="relative py-28 md:py-36">
@@ -33,7 +38,10 @@ export default function Certifications() {
                   key={cat.id}
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => setActiveFilter(cat.id)}
+                  onClick={() => {
+                    setActiveFilter(cat.id);
+                    setShowAll(false);
+                  }}
                   className={`relative flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
                     isActive ? 'text-ink' : 'text-white/65 hover:text-white'
                   }`}
@@ -88,7 +96,7 @@ export default function Certifications() {
 
         <motion.ul layout className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">
-            {rest.map((cert, index) => {
+            {visible.map((cert, index) => {
               const Icon = cert.icon;
               const hasLink = cert.verifyUrl && cert.verifyUrl !== '#';
               return (
@@ -127,6 +135,21 @@ export default function Certifications() {
             })}
           </AnimatePresence>
         </motion.ul>
+
+        {rest.length > PREVIEW_COUNT && (
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              className="btn-ghost text-sm cursor-pointer"
+              aria-expanded={showAll}
+            >
+              {showAll ? 'Show fewer' : `Show all ${rest.length} certifications`}
+              <ChevronDown size={16} className={`transition-transform duration-300 ${showAll ? 'rotate-180' : ''}`} />
+              {!showAll && <span className="font-mono text-[11px] text-white/45">+{hiddenCount}</span>}
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

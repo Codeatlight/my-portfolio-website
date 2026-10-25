@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowDown, ArrowRight } from 'lucide-react';
+import { ArrowDown, ArrowRight, FileText } from 'lucide-react';
+import { LINKEDIN_URL, RESUME_URL } from '@/data/site';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
 import MagneticButton from '@/components/ui/MagneticButton';
 import { INTRO_DELAY } from '@/lib/intro';
@@ -123,11 +124,15 @@ export default function Hero() {
             View my work
             <ArrowRight size={17} className="transition-transform duration-300 group-hover:translate-x-1" />
           </button>
+          <MagneticButton href={RESUME_URL} className="btn-ghost" ariaLabel="Résumé (PDF)">
+            <FileText size={18} />
+            Résumé
+          </MagneticButton>
           <MagneticButton href="https://github.com/Codeatlight" className="btn-ghost" ariaLabel="GitHub">
             <GithubIcon width={18} height={18} />
             <span className="hidden sm:inline">GitHub</span>
           </MagneticButton>
-          <MagneticButton href="https://linkedin.com/in/parth-shandilya" className="btn-ghost" ariaLabel="LinkedIn">
+          <MagneticButton href={LINKEDIN_URL} className="btn-ghost" ariaLabel="LinkedIn">
             <LinkedinIcon width={18} height={18} />
             <span className="hidden sm:inline">LinkedIn</span>
           </MagneticButton>

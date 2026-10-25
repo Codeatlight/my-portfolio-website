@@ -13,6 +13,8 @@ export interface TimelineEntry {
   type: 'education' | 'work';
   gradient: string;
   isCurrent?: boolean;
+  /** Render as a short card (older, lower-signal entries) */
+  compact?: boolean;
 }
 
 export const timelineEntries: TimelineEntry[] = [
@@ -32,6 +34,7 @@ export const timelineEntries: TimelineEntry[] = [
     type: 'education',
     gradient: 'from-cyan-500 to-emerald-500',
     isCurrent: false,
+    compact: true,
   },
   {
     id: 'bennett',

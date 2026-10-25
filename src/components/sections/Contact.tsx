@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, Check, Copy, Mail, MapPin } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, FileText, Mail, MapPin } from 'lucide-react';
+import { LINKEDIN_URL, RESUME_URL } from '@/data/site';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
 import SectionHeader from '@/components/ui/SectionHeader';
 import MagneticButton from '@/components/ui/MagneticButton';
@@ -48,6 +49,9 @@ export default function Contact() {
             <MagneticButton href={`mailto:${EMAIL}`} className="btn-primary text-base" strength={0.2}>
               <Mail size={18} /> Say hello <ArrowUpRight size={16} />
             </MagneticButton>
+            <a href={RESUME_URL} target="_blank" rel="noopener noreferrer" className="btn-ghost text-sm">
+              <FileText size={16} /> Résumé
+            </a>
             <button type="button" onClick={copyEmail} className="btn-ghost text-sm cursor-pointer" aria-live="polite">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
@@ -78,7 +82,7 @@ export default function Contact() {
                 <GithubIcon width={20} height={20} />
               </MagneticButton>
               <MagneticButton
-                href="https://linkedin.com/in/parth-shandilya"
+                href={LINKEDIN_URL}
                 ariaLabel="LinkedIn"
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/75 transition-colors hover:border-accent/50 hover:text-white"
               >

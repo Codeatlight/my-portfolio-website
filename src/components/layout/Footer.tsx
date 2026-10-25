@@ -1,10 +1,11 @@
 import { Mail, Heart, ArrowUp } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
 import { scrollToTarget } from '@/lib/scroll';
+import { LINKEDIN_URL } from '@/data/site';
 
 const socialLinks = [
   { icon: GithubIcon, href: 'https://github.com/Codeatlight', label: 'GitHub' },
-  { icon: LinkedinIcon, href: 'https://linkedin.com/in/parth-shandilya', label: 'LinkedIn' },
+  { icon: LinkedinIcon, href: LINKEDIN_URL, label: 'LinkedIn' },
   { icon: Mail, href: 'mailto:parthshandilya1947@gmail.com', label: 'Email' },
 ];
 

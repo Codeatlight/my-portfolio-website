@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, Menu, X } from 'lucide-react';
+import { ArrowUpRight, FileText, Menu, X } from 'lucide-react';
+import { RESUME_URL } from '@/data/site';
 import { navSections, sections } from '@/data/sections';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { INTRO_DELAY } from '@/lib/intro';
@@ -94,6 +95,16 @@ export default function Navbar() {
           </ul>
 
           <div className="flex items-center gap-2">
+            <a
+              href={RESUME_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-ghost !px-3.5 !py-2 text-[13px]"
+              aria-label="Résumé (PDF)"
+            >
+              <FileText size={15} />
+              <span className="hidden sm:inline">Résumé</span>
+            </a>
             <button type="button" onClick={() => go('contact')} className="btn-primary !px-4 !py-2 text-[13px] cursor-pointer">
               Let's talk
               <ArrowUpRight size={15} />

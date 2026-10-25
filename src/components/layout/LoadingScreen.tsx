@@ -12,18 +12,23 @@ export default function LoadingScreen() {
   useEffect(() => {
     if (!showIntro) return;
     setScrollLocked(true);
-    const timer = setTimeout(() => setIsLoading(false), INTRO_DELAY * 1000 - 250);
-    return () => {
-      clearTimeout(timer);
+    // Scroll locks are counted, so this one must be released exactly once
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
       setScrollLocked(false);
     };
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      release();
+      markIntroSeen();
+    }, INTRO_DELAY * 1000 - 250);
+    return () => {
+      clearTimeout(timer);
+      release();
+    };
   }, []);
-
-  useEffect(() => {
-    if (isLoading || !showIntro) return;
-    setScrollLocked(false);
-    markIntroSeen();
-  }, [isLoading]);
 
   return (
     <AnimatePresence>

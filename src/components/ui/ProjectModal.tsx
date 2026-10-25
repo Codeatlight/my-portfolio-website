@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Check, Zap, Trophy, Rocket, Layers, Clock } from 'lucide-react';
+import { X, ExternalLink, Check, Zap, Trophy, Rocket, Layers, Clock, Link2 } from 'lucide-react';
 import { GithubIcon } from '@/components/ui/SocialIcons';
 import { categoryLabels, type Project } from '@/data/projects';
 import { setScrollLocked } from '@/lib/scroll';
+import { projectPath } from '@/lib/projectRoute';
 
 interface ProjectModalProps {
   project: Project | null;
@@ -14,6 +15,18 @@ interface ProjectModalProps {
 export default function ProjectModal({ project, isOpen, onClose }: ProjectModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const copyLink = async () => {
+    if (!project) return;
+    try {
+      await navigator.clipboard.writeText(window.location.origin + projectPath(project.id));
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1800);
+    } catch {
+      // Clipboard blocked: the address bar already holds the shareable URL
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -143,6 +156,10 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
                         Live Demo
                       </a>
                     )}
+                    <button type="button" onClick={copyLink} className="btn-ghost !py-2 !px-4 text-sm cursor-pointer" aria-live="polite">
+                      {linkCopied ? <Check size={16} className="text-emerald-400" /> : <Link2 size={16} />}
+                      {linkCopied ? 'Link copied' : 'Copy link'}
+                    </button>
                   </div>
                 </motion.div>
 

@@ -46,11 +46,18 @@ export function scrollToTarget(target: string | HTMLElement | number, offset = -
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY + offset, behavior });
 }
 
-/** Pause/resume page scrolling (used while a modal or the loader is open). */
+let lockCount = 0;
+
+/**
+ * Pause/resume page scrolling (loader, menu, modal). Locks are counted, so one
+ * owner releasing its lock can't unfreeze the page while another still holds one.
+ */
 export function setScrollLocked(locked: boolean) {
+  lockCount = Math.max(0, lockCount + (locked ? 1 : -1));
+  const frozen = lockCount > 0;
   if (lenis) {
-    if (locked) lenis.stop();
+    if (frozen) lenis.stop();
     else lenis.start();
   }
-  document.documentElement.style.overflow = locked ? 'hidden' : '';
+  document.documentElement.style.overflow = frozen ? 'hidden' : '';
 }

@@ -29,7 +29,8 @@ export default function MagneticButton({ children, className = '', href, ariaLab
     my.set(0);
   };
 
-  const isExternal = href.startsWith('http');
+  // External sites and documents (the résumé PDF) open in a new tab
+  const isExternal = href.startsWith('http') || href.endsWith('.pdf');
 
   return (
     <motion.a
