@@ -1,4 +1,4 @@
-import { Mail, Heart, ArrowUp } from 'lucide-react';
+import { Mail, ArrowUp } from 'lucide-react';
 import { GithubIcon, LinkedinIcon } from '@/components/ui/SocialIcons';
 import { scrollToTarget } from '@/lib/scroll';
 import { LINKEDIN_URL } from '@/data/site';
@@ -32,10 +32,6 @@ export default function Footer() {
               (CC BY 4.0)
             </p>
           </div>
-
-          <p className="flex items-center gap-1.5 text-xs text-white/50">
-            Built with <Heart size={12} className="fill-accent-2 text-accent-2" /> using React, TypeScript & Framer Motion
-          </p>
 
           <div className="flex items-center gap-2">
             {socialLinks.map((social) => (
