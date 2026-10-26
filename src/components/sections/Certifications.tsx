@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, Award, ChevronDown } from 'lucide-react';
 import SectionHeader from '@/components/ui/SectionHeader';
+import { PAPER_THUMB } from '@/data/site';
 import { certifications, certificationCategories } from '@/data/certifications';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -74,9 +75,14 @@ export default function Certifications() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-accent/15 via-transparent to-accent-2/15" />
               <div className="relative flex flex-col gap-6 p-7 sm:flex-row sm:items-center sm:p-9">
-                <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${paper.gradient} shadow-[0_10px_30px_-10px_var(--accent-2)]`}>
-                  <paper.icon className="h-8 w-8 text-white" />
-                </div>
+                <img
+                  src={PAPER_THUMB}
+                  alt="Engraving of the human heart, 1686"
+                  width={900}
+                  height={1431}
+                  loading="lazy"
+                  className="h-28 w-[5.5rem] shrink-0 rounded-xl object-cover object-top shadow-[0_10px_30px_-10px_var(--accent-2)] sm:h-32 sm:w-24"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="eyebrow mb-2 flex items-center gap-2 text-accent">
                     <Award size={13} /> Research Paper

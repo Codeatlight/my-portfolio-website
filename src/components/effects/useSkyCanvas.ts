@@ -78,6 +78,7 @@ export function useSkyCanvas(progress: MotionValue<number>) {
     const lowPower = (nav.hardwareConcurrency ?? 8) <= 4 || (nav.deviceMemory ?? 8) <= 4;
 
     const fireflySprite = makeSprite('rgba(240,255,190,1)', 'rgba(205,255,130,0.6)', 'rgba(150,230,90,0.12)');
+    const beaconSprite = makeSprite('rgba(255,120,110,1)', 'rgba(255,80,70,0.6)', 'rgba(255,60,60,0.1)');
     const moteSprite = makeSprite('rgba(255,248,225,1)', 'rgba(255,225,170,0.5)', 'rgba(255,200,140,0.08)');
 
     let w = 0;
@@ -85,7 +86,7 @@ export function useSkyCanvas(progress: MotionValue<number>) {
     let stars: Star[] = [];
     let fireflies: Firefly[] = [];
     let motes: Mote[] = [];
-    let meteor: Meteor | null = null;
+    let meteors: Meteor[] = [];
     let frame = 0;
     let last = performance.now();
     let backDirty = true;
@@ -255,36 +256,45 @@ export function useSkyCanvas(progress: MotionValue<number>) {
 
       if (reduceMotion) return;
 
-      // Occasional shooting star
-      if (!meteor && starsA > 0.6 && Math.random() < 0.25 * dt) {
-        meteor = {
+      // A satellite glides across the stars on a slow, steady path (one pass every 46s)
+      const satT = (s % 46) / 46;
+      const satX = -20 + satT * (w + 40);
+      const satY = h * 0.1 + satT * h * 0.12;
+      bctx.fillStyle = `rgba(235,240,255,${starsA * (0.75 + 0.25 * Math.sin(s * 9))})`;
+      bctx.beginPath();
+      bctx.arc(satX, satY, 1.3, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Shooting stars all night, and a shower around midnight (up to three at once)
+      const shower = envelope(prog, 0.4, 0.46, 0.56, 0.62);
+      const rate = 0.25 + shower * 1.4;
+      if (meteors.length < 1 + Math.round(shower * 2) && starsA > 0.6 && Math.random() < rate * dt) {
+        meteors.push({
           x: w * (0.3 + Math.random() * 0.7),
           y: h * Math.random() * 0.3,
           vx: -(540 + Math.random() * 360),
           vy: 240 + Math.random() * 180,
           life: 1,
-        };
+        });
       }
-      if (meteor) {
-        meteor.x += meteor.vx * dt;
-        meteor.y += meteor.vy * dt;
-        meteor.life -= 1.1 * dt;
-        if (meteor.life <= 0) {
-          meteor = null;
-        } else {
-          const tx = meteor.x - meteor.vx * 0.16;
-          const ty = meteor.y - meteor.vy * 0.16;
-          const tail = bctx.createLinearGradient(meteor.x, meteor.y, tx, ty);
-          tail.addColorStop(0, `rgba(255,255,255,${meteor.life * starsA})`);
-          tail.addColorStop(1, 'rgba(255,255,255,0)');
-          bctx.strokeStyle = tail;
-          bctx.lineWidth = 1.6;
-          bctx.beginPath();
-          bctx.moveTo(meteor.x, meteor.y);
-          bctx.lineTo(tx, ty);
-          bctx.stroke();
-        }
+      for (const m of meteors) {
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        m.life -= 1.1 * dt;
+        if (m.life <= 0) continue;
+        const tx = m.x - m.vx * 0.16;
+        const ty = m.y - m.vy * 0.16;
+        const tail = bctx.createLinearGradient(m.x, m.y, tx, ty);
+        tail.addColorStop(0, `rgba(255,255,255,${m.life * starsA})`);
+        tail.addColorStop(1, 'rgba(255,255,255,0)');
+        bctx.strokeStyle = tail;
+        bctx.lineWidth = 1.6;
+        bctx.beginPath();
+        bctx.moveTo(m.x, m.y);
+        bctx.lineTo(tx, ty);
+        bctx.stroke();
       }
+      meteors = meteors.filter((m) => m.life > 0);
     };
 
     // ---------------------------------------------------------------
@@ -292,8 +302,11 @@ export function useSkyCanvas(progress: MotionValue<number>) {
     // ---------------------------------------------------------------
     const drawFront = (s: number, dt: number, prog: number) => {
       const fireA = reduceMotion ? 0 : envelope(prog, 0.3, 0.4, 0.62, 0.72);
-      const moteA = reduceMotion ? 0 : envelope(prog, 0.8, 0.9, 1.5, 2);
-      if (fireA <= 0.001 && moteA <= 0.001) {
+      // Dust catches the light at both ends of the night: the setting sun, then the rising one
+      const moteA = reduceMotion ? 0 : Math.max(envelope(prog, -1, 0, 0.12, 0.24) * 0.85, envelope(prog, 0.8, 0.9, 1.5, 2));
+      // A plane crosses as the sky darkens, navigation lights blinking
+      const planeA = reduceMotion ? 0 : envelope(prog, 0.06, 0.14, 0.5, 0.62);
+      if (fireA <= 0.001 && moteA <= 0.001 && planeA <= 0.001) {
         if (frontDirty) {
           fctx.clearRect(0, 0, w, h);
           frontDirty = false;
@@ -302,6 +315,27 @@ export function useSkyCanvas(progress: MotionValue<number>) {
       }
       frontDirty = true;
       fctx.clearRect(0, 0, w, h);
+
+      if (planeA > 0.001) {
+        const t = (s % 38) / 38;
+        const px = w + 60 - t * (w + 120);
+        const py = h * 0.2 + Math.sin(t * Math.PI) * h * 0.03;
+        // a faint steady body, a red beacon (1s) and a white strobe (two quick flashes every 1.6s)
+        fctx.fillStyle = `rgba(230,225,240,${0.35 * planeA})`;
+        fctx.beginPath();
+        fctx.arc(px, py, 1.4, 0, Math.PI * 2);
+        fctx.fill();
+        if ((s % 1) < 0.5) {
+          fctx.globalAlpha = planeA;
+          fctx.drawImage(beaconSprite, px - 6, py - 2 - 6, 12, 12);
+        }
+        const strobe = s % 1.6;
+        if (strobe < 0.06 || (strobe > 0.2 && strobe < 0.26)) {
+          fctx.globalAlpha = planeA;
+          fctx.drawImage(moteSprite, px + 5 - 7, py - 7, 14, 14);
+        }
+        fctx.globalAlpha = 1;
+      }
 
       // Fireflies wander over the ridges and blink out of phase
       if (fireA > 0.001) {

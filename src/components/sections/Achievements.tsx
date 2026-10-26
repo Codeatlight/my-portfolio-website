@@ -5,6 +5,7 @@ import { useCountUp } from '@/hooks/useCountUp';
 import { certifications } from '@/data/certifications';
 import { projects } from '@/data/projects';
 import { timelineEntries } from '@/data/experience';
+import { PAPER_THUMB } from '@/data/site';
 import { navigateToProject, projectPath } from '@/lib/projectRoute';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -77,10 +78,22 @@ export default function Achievements() {
           {paper && (
             <Tile index={0} className="ring-glow md:col-span-2 lg:row-span-2">
               <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-gradient-to-br from-accent/25 to-accent-2/25 blur-3xl" />
-              <TileLabel icon={FileText}>Published research</TileLabel>
-              <p className="font-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                <span className="text-sky-gradient">{paper.issuer}</span>
-              </p>
+              <div className="flex items-start gap-5">
+                <div className="min-w-0 flex-1">
+                  <TileLabel icon={FileText}>Published research</TileLabel>
+                  <p className="font-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                    <span className="text-sky-gradient">{paper.issuer}</span>
+                  </p>
+                </div>
+                <img
+                  src={PAPER_THUMB}
+                  alt="Engraving of the human heart, 1686"
+                  width={900}
+                  height={1431}
+                  loading="lazy"
+                  className="relative h-36 w-28 shrink-0 rounded-xl object-cover object-top sm:h-44 sm:w-32"
+                />
+              </div>
               <h3 className="mt-4 font-serif text-2xl italic leading-snug text-white/90 sm:text-3xl">“{paper.title}”</h3>
               <div className="mt-auto pt-8">
                 {paper.verifyUrl && paper.verifyUrl !== '#' && (

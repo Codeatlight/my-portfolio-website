@@ -181,6 +181,7 @@ export default function SkyBackground() {
   const fogColor = useTransform(t, MOUNT_T, ['rgba(255,150,110,0.35)', 'rgba(200,90,120,0.25)', 'rgba(60,60,110,0.15)', 'rgba(40,40,90,0.12)', 'rgba(60,60,110,0.15)', 'rgba(230,130,140,0.25)', 'rgba(255,200,160,0.35)']);
   const fog = useMotionTemplate`linear-gradient(to top, ${fogColor}, transparent)`;
   const birdsOpacity = useTransform(t, [0, 0.1, 0.18, 0.82, 0.9, 1], [0.8, 0.6, 0, 0, 0.6, 0.85]);
+  const dawnFlockOpacity = useTransform(t, [0.84, 0.92, 1], [0, 0.7, 0.85]);
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -246,34 +247,12 @@ export default function SkyBackground() {
       <CloudDeck opacity={warmCloudOpacity} lit="#ffb38a" shade="#7a3a6e" />
       <CloudDeck opacity={nightCloudOpacity} lit="#3a3a62" shade="#1a1a34" />
 
-      {/* Birds */}
+      {/* Birds: one flock at dusk and dawn, and a second, higher flock heading the other way at dawn */}
       <motion.div className="absolute inset-x-0 top-[22%]" style={{ opacity: birdsOpacity }}>
-        <div className="animate-[bird-flight_48s_linear_infinite]">
-          {[
-            { x: 0, y: 0, s: 1 },
-            { x: 34, y: 16, s: 0.85 },
-            { x: -30, y: 20, s: 0.8 },
-            { x: 66, y: 34, s: 0.7 },
-            { x: 110, y: 8, s: 0.6 },
-          ].map((b, i) => (
-            <svg
-              key={i}
-              viewBox="0 0 24 10"
-              className="absolute h-3 w-7"
-              style={{ left: b.x, top: b.y, scale: b.s }}
-            >
-              <path
-                d="M0 6 Q6 0 12 6 Q18 0 24 6"
-                fill="none"
-                stroke="rgba(20,12,30,0.75)"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                className="origin-center animate-[wing-flap_0.9s_ease-in-out_infinite]"
-                style={{ animationDelay: `${i * 0.13}s` }}
-              />
-            </svg>
-          ))}
-        </div>
+        <Flock animation="animate-[bird-flight_48s_linear_infinite]" birds={FLOCK_EVENING} />
+      </motion.div>
+      <motion.div className="absolute inset-x-0 top-[13%]" style={{ opacity: dawnFlockOpacity }}>
+        <Flock animation="animate-[bird-flight-east_36s_linear_infinite] [animation-delay:-9s]" birds={FLOCK_DAWN} />
       </motion.div>
 
       {/* Mountain ranges */}
@@ -398,5 +377,43 @@ function FlarePiece({
         }}
       />
     </motion.div>
+  );
+}
+
+const FLOCK_EVENING = [
+  { x: 0, y: 0, s: 1 },
+  { x: 34, y: 16, s: 0.85 },
+  { x: -30, y: 20, s: 0.8 },
+  { x: 66, y: 34, s: 0.7 },
+  { x: 110, y: 8, s: 0.6 },
+];
+
+const FLOCK_DAWN = [
+  { x: 0, y: 10, s: 0.8 },
+  { x: -36, y: 0, s: 0.7 },
+  { x: -70, y: 18, s: 0.65 },
+  { x: -104, y: 6, s: 0.6 },
+  { x: -140, y: 26, s: 0.55 },
+  { x: -176, y: 12, s: 0.5 },
+  { x: -212, y: 30, s: 0.5 },
+];
+
+function Flock({ animation, birds }: { animation: string; birds: { x: number; y: number; s: number }[] }) {
+  return (
+    <div className={animation}>
+      {birds.map((b, i) => (
+        <svg key={i} viewBox="0 0 24 10" className="absolute h-3 w-7" style={{ left: b.x, top: b.y, scale: b.s }}>
+          <path
+            d="M0 6 Q6 0 12 6 Q18 0 24 6"
+            fill="none"
+            stroke="rgba(20,12,30,0.75)"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            className="origin-center animate-[wing-flap_0.9s_ease-in-out_infinite]"
+            style={{ animationDelay: `${i * 0.13}s` }}
+          />
+        </svg>
+      ))}
+    </div>
   );
 }

@@ -19,6 +19,18 @@ export default function Footer() {
               Parth <span className="font-serif font-normal italic text-sky-gradient">Shandilya</span>
             </span>
             <p className="text-xs text-white/50">© {new Date().getFullYear()} All rights reserved.</p>
+            <p className="text-[11px] text-white/40">
+              Paper thumbnail:{' '}
+              <a
+                href="https://commons.wikimedia.org/wiki/File:The_anatomy_of_the_heart._Engraving,_1686._Wellcome_V0007778EC.jpg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline transition-colors hover:text-white"
+              >
+                The anatomy of the heart, 1686
+              </a>{' '}
+              (CC BY 4.0)
+            </p>
           </div>
 
           <p className="flex items-center gap-1.5 text-xs text-white/50">

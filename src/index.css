@@ -59,6 +59,11 @@
   to { transform: translate3d(-30vw, -6vh, 0); }
 }
 
+@keyframes bird-flight-east {
+  from { transform: translate3d(-20vw, 4vh, 0); }
+  to { transform: translate3d(115vw, -4vh, 0); }
+}
+
 @keyframes wing-flap {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(-0.6); }
