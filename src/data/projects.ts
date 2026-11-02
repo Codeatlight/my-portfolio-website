@@ -12,12 +12,85 @@ export interface Project {
   demoUrl?: string;
   githubUrl?: string;
   image: string;
-  category: 'ai-ml' | 'fullstack' | 'desktop';
+  category: 'ai-ml' | 'data-science' | 'fullstack' | 'desktop';
   status: 'completed' | 'in-development';
   gradient: string;
 }
 
 export const projects: Project[] = [
+  {
+    id: 'credit-risk-scorecard',
+    title: 'Credit Risk Scorecard',
+    subtitle: 'Explainable Loan Decisions, Point by Point',
+    description: 'Predicts the chance of loan default, turns it into an explainable points-based score, and picks the approval cutoff by weighing losses on defaults against interest earned.',
+    longDescription: `Should a lender approve this applicant? This project answers that end to end on the Home Credit Default Risk dataset of about 307,511 loan applications. It combines seven tables into one row per applicant, builds a points-based scorecard using Weight of Evidence and Information Value, and compares it against a LightGBM challenger to show what extra accuracy costs in explainability.
+
+The approval cutoff comes from expected profit, with its assumptions stated openly, and the Streamlit app turns 15 answers into a score, a decision and plain reasons. Final results were scored once on 61,503 holdout applicants that were never touched during development.`,
+    techStack: ['Python', 'LightGBM', 'SHAP', 'Scikit-learn', 'pandas', 'NumPy', 'Streamlit', 'Render'],
+    features: [
+      'Points-based scorecard with 15 lines, built with Weight of Evidence binning and logistic regression',
+      'LightGBM challenger models, compared with and without external bureau scores',
+      'Approval cutoff chosen from expected profit, with a sensitivity table for the assumptions',
+      'SHAP reasons for individual decisions',
+      'Fairness checks on approval and error rates across gender and age groups',
+      'Streamlit app with sample applicants, a results explorer and a single-change suggestion that raises the score most',
+    ],
+    challenges: [
+      'Keeping results honest: a stratified holdout is scored once, and the script refuses to run again',
+      'Explainability against accuracy: measured directly, at a cost of 0.035 to 0.061 of AUC',
+      'Leakage and data quality across seven joined tables, covered by a feature dictionary and sanity report',
+      'Making the app run without raw data by exporting only the scorecard points it needs',
+    ],
+    results: [
+      'Holdout AUC of 0.704 for the scorecard and 0.764 for LightGBM without external scores; 0.788 for LightGBM with them',
+      'Gini of 0.407 and KS of 0.304 for the fully explainable scorecard',
+      'Under stated assumptions (15% earned on a repaid loan, 60% lost on a default), the best model improved profit per applicant by 4,350 over approving everyone',
+      'All four models pass the four-fifths screening rule on approval rates, with age gaps flagged as the main concern',
+    ],
+    futureImprovements: [],
+    demoUrl: 'https://credit-risk-scorecard-n902.onrender.com',
+    githubUrl: 'https://github.com/Codeatlight/Credit-Risk-Assessment',
+    image: '/projects/credit-risk-scorecard.jpg',
+    category: 'data-science',
+    status: 'completed',
+    gradient: 'from-emerald-500/20 to-amber-500/20',
+  },
+  {
+    id: 'mandi-price-forecasting',
+    title: 'Mandi Price Forecasting',
+    subtitle: 'Onion, Tomato and Potato Prices, Week by Week',
+    description: 'Forecasts wholesale onion, tomato and potato prices across Indian mandis, with honest 80% price ranges and early warnings when a price spike is likely.',
+    longDescription: `Onion, tomato and potato prices can double within weeks, which hits farmers and households alike. This project forecasts them one to four weeks ahead using more than 1.5 million daily price records from Agmarknet, published on data.gov.in, from the 20 busiest districts for each crop.
+
+Models are validated with rolling-origin backtests, never random splits, and every model has to beat simple baselines such as "next week equals this week". Final results come from a single run on November 2024 to October 2026, a period kept out of all earlier work. The bazaar-themed Streamlit app shows a live rate board, forecasts by crop and market, price ranges and spike status.`,
+    techStack: ['Python', 'LightGBM', 'statsmodels', 'Scikit-learn', 'pandas', 'NumPy', 'Plotly', 'Streamlit', 'Render'],
+    features: [
+      'Forecasts 1, 2 and 4 weeks ahead with one LightGBM model per crop and horizon across all markets',
+      '80% forecast ranges from quantile models, corrected using the previous year’s misses',
+      'Spike alerts that warn of a new spike at a market within four weeks',
+      'Automated data collection from the data.gov.in API, with the source and date of each download recorded',
+      'Streamlit app with a rate board, forecasts by market and prices per kg or per quintal',
+    ],
+    challenges: [
+      'Market names changed with Agmarknet 2.0 and districts were renamed or split, so these were joined back into one series',
+      'Removing impossible prices while keeping real spikes, such as tomato in 2023 and onion in 2019',
+      'Avoiding leakage in time-series data with rolling-origin backtests and models retrained before each test year',
+      'Kerala stopped reporting in June 2026, so markets are flagged by whether live forecasts are possible',
+    ],
+    results: [
+      'Tomato four-week forecasts beat the baseline by 13.1%, cutting error from 31.23% to 27.13%',
+      'Onion and potato four-week forecasts improved by 7.0% and 8.0%, though their ranges include zero',
+      'Spike alerts warned of 79% of onion spikes and 85% of tomato spikes in advance',
+      '80% price ranges held between 77.2% and 83.5% of the time on the final test',
+    ],
+    futureImprovements: ['Add weather data', 'Add market arrival quantities'],
+    demoUrl: 'https://mandi-price-forecasts.onrender.com',
+    githubUrl: 'https://github.com/Codeatlight/Mandi-Price-Forecasting',
+    image: '/projects/mandi-price-forecasting.jpg',
+    category: 'data-science',
+    status: 'completed',
+    gradient: 'from-amber-500/20 to-rose-500/20',
+  },
   {
     id: 'lawsage-ai',
     title: 'LawSage AI',
@@ -226,6 +299,7 @@ The application features master account authentication, encrypted credential sto
 
 export const categoryLabels: Record<Project['category'], string> = {
   'ai-ml': 'AI / ML',
+  'data-science': 'Data Science',
   fullstack: 'Full Stack',
   desktop: 'Desktop',
 };

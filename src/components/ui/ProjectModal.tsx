@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Check, Zap, Trophy, Rocket, Layers, Clock, Link2 } from 'lucide-react';
 import { GithubIcon } from '@/components/ui/SocialIcons';
@@ -63,7 +64,8 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
     show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
   };
 
-  return (
+  // Rendered on <body> so the dialog sits above the navbar, outside <main>'s stacking context
+  return createPortal(
     <AnimatePresence>
       {isOpen && project && (
         <motion.div
@@ -264,6 +266,7 @@ export default function ProjectModal({ project, isOpen, onClose }: ProjectModalP
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

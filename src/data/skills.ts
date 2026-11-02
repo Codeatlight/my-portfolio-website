@@ -59,6 +59,8 @@ export const skillCategories: SkillCategory[] = [
       { name: 'NumPy', icon: BarChart3, color: '#013243' },
       { name: 'Matplotlib', icon: Palette, color: '#11557c' },
       { name: 'Scikit-learn', icon: Brain, color: '#f7931e' },
+      { name: 'LightGBM', icon: Brain, color: '#22c55e' },
+      { name: 'SHAP', icon: Brain, color: '#f43f5e' },
       { name: 'BeautifulSoup', icon: Globe, color: '#43b02a' },
       { name: 'PIL', icon: Palette, color: '#3776ab' },
       { name: 'pdfminer', icon: FileCode2, color: '#d63384' },
